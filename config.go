@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/and-hom/csv2db/common"
+	log "github.com/Sirupsen/logrus"
 )
 
 type DbType string
@@ -48,5 +49,13 @@ func (this Config) SetMode(mode string) {
 	this.DropAndCreateIfExists = (mode == MODE_DROP_AND_CREATE)
 	this.DeletePrevious = (mode == MODE_DELETE_ALL)
 	this.TruncatePrevious = (mode == MODE_TRUNCATE)
+}
+
+func (this Config) Validate() {
+	if len(this.Delimiter) > 1 {
+		log.Fatalf("CSV delimiter should be a single char: %s", this.Delimiter)
+	} else if (len(this.Delimiter) == 0) {
+		log.Fatalf("Should set CSV delimiter")
+	}
 }
 

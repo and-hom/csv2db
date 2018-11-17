@@ -78,6 +78,7 @@ func LoadConfig(c *cli.Context) Config {
 		Encoding : c.String(flagName(ENCODING_FLAG)),
 	}
 	cliConfig.SetMode(c.String(TABLE_MODE_FLAG))
+	cliConfig.Validate()
 	return cliConfig
 }
 
@@ -124,6 +125,7 @@ func (this CsvToDb) Perform() error {
 	}
 	fileReader := bufio.NewReader(encodedReader)
 	csvReader := csv.NewReader(fileReader)
+	csvReader.Comma = ([]rune(this.Config.Delimiter))[0]
 
 	tableExists, err := dbTool.Exists(this.Config.Schema, this.Config.Table)
 	if err != nil {
