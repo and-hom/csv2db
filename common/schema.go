@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"github.com/Sirupsen/logrus"
 	"strconv"
+	"bytes"
+	"encoding/json"
 )
 
 type Schema struct {
@@ -14,6 +16,10 @@ type ColDef struct {
 	GoType     reflect.Kind
 	Nullable   bool
 	OrderIndex int
+}
+
+func (this Schema) String() string {
+	return ObjectToJson(this)
 }
 
 func (this Schema) ToInsertSchema() InsertSchema {
@@ -33,7 +39,8 @@ func (this Schema) ToInsertSchema() InsertSchema {
 	return insertSchema
 }
 
-func CreateCsvToDbSchema(csvSchema, dbSchema Schema) InsertSchema {
+/// Take type and nullable from DB cchema
+func CreateCsvToDbSchemaByName(csvSchema, dbSchema Schema) InsertSchema {
 	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
 	for name, csvDef := range csvSchema.Types {
 		dbDef, found := dbSchema.Types[name]
@@ -57,6 +64,39 @@ func CreateCsvToDbSchema(csvSchema, dbSchema Schema) InsertSchema {
 	}
 	return insertSchema
 }
+func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
+	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
+	for _, csvDef := range csvSchema.Types {
+		name, dbDef, found := getByIdx(dbSchema, csvDef.OrderIndex)
+		if !found {
+			logrus.Warnf("Can not find DB defenition for CSV column #%d - use not null string type", csvDef.OrderIndex)
+			continue
+		}
+
+		valMapper := createValMapper(dbDef.GoType)
+		if dbDef.Nullable {
+			valMapper = NullableMapper{Source:valMapper}.Apply
+		}
+		insertSchema.Types[name] = InsertColDef{
+			ValMapper:valMapper,
+			ColDef:ColDef{
+				GoType: dbDef.GoType,
+				Nullable:dbDef.Nullable,
+				OrderIndex:csvDef.OrderIndex,
+			},
+		}
+	}
+	return insertSchema
+}
+
+func getByIdx(schema Schema, index int) (string, ColDef, bool) {
+	for name,colDef := range schema.Types {
+		if colDef.OrderIndex==index {
+			return name, colDef, true
+		}
+	}
+	return "", ColDef{}, false
+}
 
 type InsertSchema struct {
 	Types map[string]InsertColDef
@@ -64,7 +104,11 @@ type InsertSchema struct {
 
 type InsertColDef struct {
 	ColDef
-	ValMapper ValMapper
+	ValMapper ValMapper `json:"-"`
+}
+
+func (this InsertSchema) String() string {
+	return ObjectToJson(this)
 }
 
 func createValMapper(goType reflect.Kind) ValMapper {
@@ -128,4 +172,17 @@ func Float32ValMapper(val string) (interface{}, error) {
 
 func BoolValMapper(val string) (interface{}, error) {
 	return strconv.ParseBool(val)
+}
+
+
+
+func ObjectToJson(object interface{}) string {
+	buf := bytes.Buffer{}
+	f := json.NewEncoder(&buf)
+	f.SetIndent("", "    ")
+	err := f.Encode(object)
+	if err != nil {
+		logrus.Fatalf("Can not convert config to string: %v", err)
+	}
+	return buf.String()
 }

@@ -1,4 +1,4 @@
-package postgres
+package _postgres
 
 import (
 	"database/sql"
@@ -54,7 +54,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 				   AND    c.relkind = 'r'
 				)`
 	logrus.Debug(query)
-	rows, err := this.db.Query(query, schema, table)
+	rows, err := this.db.Query(query, nvlSchema(schema), table)
 	if err != nil {
 		return false, err
 	}
@@ -68,7 +68,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 	return false, errors.New("Empty query for select exists")
 }
 
-func (this pgDbTool) LoadSchema(schema, table string, tabSchema *common.Schema) error {
+func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 	rows, err := this.db.Query(`SELECT
 					    f.attname AS name,
 					    not f.attnotnull AS nullable,
@@ -84,9 +84,9 @@ func (this pgDbTool) LoadSchema(schema, table string, tabSchema *common.Schema) 
 					WHERE c.relkind = 'r'::char
 					    AND n.nspname = $1
 					    AND c.relname = $2
-					    AND f.attnum > 0 ORDER BY f.attnum ASC`, schema, table)
+					    AND f.attnum > 0 ORDER BY f.attnum ASC`, nvlSchema(schema), table)
 	if err != nil {
-		return err
+		return common.Schema{}, err
 	}
 	defer rows.Close()
 
@@ -100,7 +100,7 @@ func (this pgDbTool) LoadSchema(schema, table string, tabSchema *common.Schema) 
 
 		err := rows.Scan(&colName, &colDef.Nullable, &dataType)
 		if err != nil {
-			return err
+			return common.Schema{}, err
 		}
 
 		var typeOk = false
@@ -111,8 +111,7 @@ func (this pgDbTool) LoadSchema(schema, table string, tabSchema *common.Schema) 
 		}
 		colMap[colName] = colDef
 	}
-	tabSchema.Types = colMap
-	return nil
+	return common.Schema{Types:colMap}, nil
 }
 
 func (this pgDbTool) CreateTable(schema, table string, tabSchema common.Schema) error {
@@ -120,7 +119,7 @@ func (this pgDbTool) CreateTable(schema, table string, tabSchema common.Schema) 
 		return errors.New("Can not create table without any column")
 	}
 	sb := bytes.NewBufferString("CREATE TABLE ")
-	sb.WriteString(schema)
+	sb.WriteString(nvlSchema(schema))
 	sb.WriteString(".")
 	sb.WriteString(table)
 	sb.WriteString("(")
@@ -151,6 +150,21 @@ func (this pgDbTool) CreateTable(schema, table string, tabSchema common.Schema) 
 	return err
 }
 
+func (this pgDbTool) DropTable(schema, table string) error {
+	_, err := this.db.Exec(fmt.Sprintf("DROP TABLE %s.%s", nvlSchema(schema), table))
+	return err
+}
+
+func (this pgDbTool) TruncateTable(schema, table string) error {
+	_, err := this.db.Exec(fmt.Sprintf("TRUNCATE TABLE %s.%s", nvlSchema(schema), table))
+	return err
+}
+
+func (this pgDbTool) DeleteFromTable(schema, table string) error {
+	_, err := this.db.Exec(fmt.Sprintf("DELETE FROM %s.%s", nvlSchema(schema), table))
+	return err
+}
+
 func (this pgDbTool) InsertQuery(schema, table string, tabSchema common.InsertSchema) (string, []string, error) {
 	if len(tabSchema.Types) == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
@@ -165,7 +179,7 @@ func (this pgDbTool) InsertQuery(schema, table string, tabSchema common.InsertSc
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
-	sb.WriteString(schema)
+	sb.WriteString(nvlSchema(schema))
 	sb.WriteString(".")
 	sb.WriteString(table)
 	sb.WriteString("(")
@@ -174,4 +188,11 @@ func (this pgDbTool) InsertQuery(schema, table string, tabSchema common.InsertSc
 	sb.WriteString(strings.Join(params, ","))
 	sb.WriteString(")")
 	return sb.String(), names, nil
+}
+
+func nvlSchema(schema string) string {
+	if schema == "" {
+		return "public"
+	}
+	return schema
 }
