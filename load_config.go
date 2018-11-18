@@ -31,7 +31,7 @@ func loadFromCliArgs(c *cli.Context) Config {
 
 		Schema:schemaName,
 		Table:tableParts[len(tableParts) - 1],
-		TableMode:TableMode(c.String(TABLE_MODE_FLAG)),
+		TableMode:TableMode(c.String(flagName(TABLE_MODE_FLAG))),
 
 		FileName : c.String(flagName(INPUT_FILE_FLAG)),
 		HasHeader : c.Bool(flagName(HEADER_FLAG)),

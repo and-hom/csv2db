@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"io/ioutil"
 	"reflect"
+	"strings"
 )
 
 type DbType string
@@ -60,7 +61,7 @@ func (this TableMode) DeletePrevious() bool {
 }
 
 func (this TableMode) TruncatePrevious() bool {
-	return this == MODE_DELETE_ALL
+	return this == MODE_TRUNCATE
 }
 
 func (this Config) String() string {
@@ -72,6 +73,16 @@ func (this Config) Validate() {
 		log.Fatalf("CSV delimiter should be a single char: %s", this.Delimiter)
 	} else if (len(this.Delimiter) == 0) {
 		log.Fatalf("Should set CSV delimiter")
+	}
+	modeOk := false
+	for _, mode := range modes {
+		if mode == string(this.TableMode) {
+			modeOk = true
+			break
+		}
+	}
+	if !modeOk {
+		log.Fatalf("Unsupported table mode %s. Available are: %s", this.TableMode, strings.Join(modes, ", "))
 	}
 }
 
