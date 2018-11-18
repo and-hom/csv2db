@@ -18,10 +18,6 @@ type ColDef struct {
 	OrderIndex int
 }
 
-func (this Schema) String() string {
-	return ObjectToJson(this)
-}
-
 func (this Schema) ToInsertSchema() InsertSchema {
 	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
 
@@ -90,8 +86,8 @@ func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
 }
 
 func getByIdx(schema Schema, index int) (string, ColDef, bool) {
-	for name,colDef := range schema.Types {
-		if colDef.OrderIndex==index {
+	for name, colDef := range schema.Types {
+		if colDef.OrderIndex == index {
 			return name, colDef, true
 		}
 	}
@@ -105,10 +101,6 @@ type InsertSchema struct {
 type InsertColDef struct {
 	ColDef
 	ValMapper ValMapper `json:"-"`
-}
-
-func (this InsertSchema) String() string {
-	return ObjectToJson(this)
 }
 
 func createValMapper(goType reflect.Kind) ValMapper {
@@ -174,12 +166,12 @@ func BoolValMapper(val string) (interface{}, error) {
 	return strconv.ParseBool(val)
 }
 
-
-
-func ObjectToJson(object interface{}) string {
+func ObjectToJson(object interface{}, pretty bool) string {
 	buf := bytes.Buffer{}
 	f := json.NewEncoder(&buf)
-	f.SetIndent("", "    ")
+	if pretty {
+		f.SetIndent("", "    ")
+	}
 	err := f.Encode(object)
 	if err != nil {
 		logrus.Fatalf("Can not convert config to string: %v", err)

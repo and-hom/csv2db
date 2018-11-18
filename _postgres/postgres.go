@@ -165,14 +165,14 @@ func (this pgDbTool) DeleteFromTable(schema, table string) error {
 	return err
 }
 
-func (this pgDbTool) InsertQuery(schema, table string, tabSchema common.InsertSchema) (string, []string, error) {
-	if len(tabSchema.Types) == 0 {
+func (this pgDbTool) InsertQuery(schema, table string, insertSchema common.InsertSchema) (string, []string, error) {
+	if len(insertSchema.Types) == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
 	}
-	names := make([]string, 0, len(tabSchema.Types))
-	params := make([]string, 0, len(tabSchema.Types))
+	names := make([]string, 0, len(insertSchema.Types))
+	params := make([]string, 0, len(insertSchema.Types))
 	i := 1
-	for name, _ := range tabSchema.Types {
+	for name, _ := range insertSchema.Types {
 		names = append(names, name)
 		params = append(params, fmt.Sprintf("$%d", i))
 		i += 1
