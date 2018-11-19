@@ -6,24 +6,26 @@ import (
 	"errors"
 	"reflect"
 	"github.com/Sirupsen/logrus"
+	_ "github.com/lib/pq"
 	"bytes"
-	"fmt"
 	"strings"
+	"fmt"
 )
 
 func MakeDbTool(db *sql.DB) common.DbTool {
-	tool := pgDbTool{
-		db:db,
-		dbToGoTypeMapping:make(map[string]reflect.Kind),
-		goTypeToDbMapping:make(map[reflect.Kind]string),
-	}
-	tool.registerType(reflect.Int64, "bigint", "bigserial")
-	tool.registerType(reflect.Int32, "integer", "serial")
-	tool.registerType(reflect.Int8, "smallint", "smallserial")
-	tool.registerType(reflect.Float64, "double precision", "numeric")
-	tool.registerType(reflect.Float32, "real")
-	tool.registerType(reflect.Bool, "bool")
-	tool.registerType(reflect.String, "character varying", "text", "character", "json", "jsonb", "uuid", "xml",
+	tool := pgDbTool{common.CommonDbTool{
+		Db:db,
+		DbToGoTypeMapping:make(map[string]reflect.Kind),
+		GoTypeToDbMapping:make(map[reflect.Kind]string),
+		DefaultSchema:"public",
+	}, }
+	tool.RegisterType(reflect.Int64, "bigint", "bigserial")
+	tool.RegisterType(reflect.Int32, "integer", "serial")
+	tool.RegisterType(reflect.Int8, "smallint", "smallserial")
+	tool.RegisterType(reflect.Float64, "double precision", "numeric")
+	tool.RegisterType(reflect.Float32, "real")
+	tool.RegisterType(reflect.Bool, "bool")
+	tool.RegisterType(reflect.String, "character varying", "text", "character", "json", "jsonb", "uuid", "xml",
 		"date", "time", "timestamp",
 		"date with time zone", "time with time zone", "timestamp with time zone", )
 
@@ -31,17 +33,7 @@ func MakeDbTool(db *sql.DB) common.DbTool {
 }
 
 type pgDbTool struct {
-	db                *sql.DB
-	dbToGoTypeMapping map[string]reflect.Kind
-	goTypeToDbMapping map[reflect.Kind]string
-}
-
-func (this pgDbTool) registerType(goType reflect.Kind, dbPrimaryType string, dbTypes ...string) {
-	this.dbToGoTypeMapping[dbPrimaryType] = goType
-	for _, dbType := range dbTypes {
-		this.dbToGoTypeMapping[dbType] = goType
-	}
-	this.goTypeToDbMapping[goType] = dbPrimaryType
+	common.CommonDbTool
 }
 
 func (this pgDbTool) Exists(schema, table string) (bool, error) {
@@ -54,7 +46,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 				   AND    c.relkind = 'r'
 				)`
 	logrus.Debug(query)
-	rows, err := this.db.Query(query, nvlSchema(schema), table)
+	rows, err := this.Db.Query(query, this.NvlSchema(schema), table)
 	if err != nil {
 		return false, err
 	}
@@ -69,7 +61,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 }
 
 func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
-	rows, err := this.db.Query(`SELECT
+	rows, err := this.Db.Query(`SELECT
 					    f.attname AS name,
 					    not f.attnotnull AS nullable,
 					    pg_catalog.format_type(f.atttypid,f.atttypmod) AS type
@@ -84,7 +76,7 @@ func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 					WHERE c.relkind = 'r'::char
 					    AND n.nspname = $1
 					    AND c.relname = $2
-					    AND f.attnum > 0 ORDER BY f.attnum ASC`, nvlSchema(schema), table)
+					    AND f.attnum > 0 ORDER BY f.attnum ASC`, this.NvlSchema(schema), table)
 	if err != nil {
 		return common.Schema{}, err
 	}
@@ -104,7 +96,7 @@ func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 		}
 
 		var typeOk = false
-		colDef.GoType, typeOk = this.dbToGoTypeMapping[dataType]
+		colDef.GoType, typeOk = this.DbToGoTypeMapping[dataType]
 		if !typeOk {
 			logrus.Warnf("Can not detect go type for column type %s - skip column", dataType)
 			continue
@@ -115,54 +107,19 @@ func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 }
 
 func (this pgDbTool) CreateTable(schema, table string, tabSchema common.Schema) error {
-	if len(tabSchema.Types) == 0 {
-		return errors.New("Can not create table without any column")
-	}
-	sb := bytes.NewBufferString("CREATE TABLE ")
-	sb.WriteString(nvlSchema(schema))
-	sb.WriteString(".")
-	sb.WriteString(table)
-	sb.WriteString("(")
-
-	first := true
-	for name, colDef := range tabSchema.Types {
-		if first {
-			first = false
-		} else {
-			sb.WriteString(", ")
-		}
-		sqlType, registered := this.goTypeToDbMapping[colDef.GoType]
-		if !registered {
-			return fmt.Errorf("No registered SQL type for go type %v", colDef.GoType)
-		}
-		sb.WriteString(name)
-		sb.WriteString(" ")
-		sb.WriteString(sqlType)
-		if !colDef.Nullable {
-			sb.WriteString(" NOT NULL")
-		}
-	}
-	sb.WriteString(")")
-
-	logrus.Debug(sb.String())
-
-	_, err := this.db.Exec(sb.String())
-	return err
+	return this.CommonDbTool.CreateTable(this.NvlSchema(schema), table, tabSchema)
 }
 
 func (this pgDbTool) DropTable(schema, table string) error {
-	_, err := this.db.Exec(fmt.Sprintf("DROP TABLE %s.%s", nvlSchema(schema), table))
-	return err
+	return this.CommonDbTool.DropTable(this.NvlSchema(schema), table)
 }
 
 func (this pgDbTool) TruncateTable(schema, table string) error {
-	_, err := this.db.Exec(fmt.Sprintf("TRUNCATE TABLE %s.%s", nvlSchema(schema), table))
-	return err
+	return this.CommonDbTool.TruncateTable(this.NvlSchema(schema), table)
 }
 
 func (this pgDbTool) DeleteFromTable(schema, table string) error {
-	_, err := this.db.Exec(fmt.Sprintf("DELETE FROM %s.%s", nvlSchema(schema), table))
-	return err
+	return this.CommonDbTool.DeleteFromTable(this.NvlSchema(schema), table)
 }
 
 func (this pgDbTool) InsertQuery(schema, table string, insertSchema common.InsertSchema) (string, []string, error) {
@@ -179,7 +136,7 @@ func (this pgDbTool) InsertQuery(schema, table string, insertSchema common.Inser
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
-	sb.WriteString(nvlSchema(schema))
+	sb.WriteString(this.NvlSchema(schema))
 	sb.WriteString(".")
 	sb.WriteString(table)
 	sb.WriteString("(")
@@ -188,11 +145,4 @@ func (this pgDbTool) InsertQuery(schema, table string, insertSchema common.Inser
 	sb.WriteString(strings.Join(params, ","))
 	sb.WriteString(")")
 	return sb.String(), names, nil
-}
-
-func nvlSchema(schema string) string {
-	if schema == "" {
-		return "public"
-	}
-	return schema
 }

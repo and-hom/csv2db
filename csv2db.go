@@ -10,10 +10,11 @@ import (
 	"github.com/and-hom/csv2db/common"
 	"io"
 	"reflect"
-	"github.com/and-hom/csv2db/_postgres"
 	"fmt"
 	"golang.org/x/net/html/charset"
 	"github.com/pkg/errors"
+	"github.com/and-hom/csv2db/_postgres"
+	"github.com/and-hom/csv2db/_mysql"
 )
 
 type CsvToDb struct {
@@ -21,8 +22,8 @@ type CsvToDb struct {
 	dbTool       common.DbTool
 	tableExists  bool
 	insertSchema common.InsertSchema
-	st *sql.Stmt
-	columnNames []string
+	st           *sql.Stmt
+	columnNames  []string
 }
 
 func (this *CsvToDb) Perform() error {
@@ -33,7 +34,7 @@ func (this *CsvToDb) Perform() error {
 	defer db.Close()
 	log.Debugf("Connected to %s %s", this.Config.DbType, this.Config.DbConnString)
 
-	this.dbTool = _postgres.MakeDbTool(db)
+	this.dbTool = this.makeDbTool(db)
 
 	csvReader, closer, err := this.createReader()
 	if err != nil {
@@ -94,6 +95,18 @@ func (this *CsvToDb) Perform() error {
 	}
 
 	return nil
+}
+
+func (this *CsvToDb) makeDbTool(db *sql.DB) common.DbTool {
+	switch this.Config.DbType {
+	case postgres:
+		return _postgres.MakeDbTool(db)
+	case mysql:
+		return _mysql.MakeDbTool(db)
+	default:
+		log.Fatalf("Unsupported db type %s", this.Config.DbType)
+		return nil
+	}
 }
 
 func (this *CsvToDb) initInsertStatement(db *sql.DB) error {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	_ "github.com/lib/pq"
 	"gopkg.in/urfave/cli.v1"
 	log "github.com/Sirupsen/logrus"
 	"strings"
