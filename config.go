@@ -74,7 +74,7 @@ func (this Config) Validate() {
 	} else if (len(this.Delimiter) == 0) {
 		log.Fatalf("Should set CSV delimiter")
 	}
-	modeOk := false
+	modeOk := (string(this.TableMode) == "")
 	for _, mode := range modes {
 		if mode == string(this.TableMode) {
 			modeOk = true
