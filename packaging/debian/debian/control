@@ -1,0 +1,11 @@
+Source: csv2db
+Maintainer: Andrey Khomyakov <and.hom@gmail.com>
+Build-Depends: debhelper (>= 8.0.0), golang
+Standards-Version: 4.1.4
+Section: misc
+
+Package: csv2db
+Priority: extra
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Tool for uploading CSV to database table

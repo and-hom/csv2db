@@ -1,3 +1,12 @@
 .idea
 *.iml
+
 csv2db
+
+snap
+parts
+prime
+stage
+*.snap
+
+obj-x86_64-linux-gnu

@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(abspath $(mkfile_path)/../../)
+project_path := obj-x86_64-linux-gnu/src/github.com/and-hom/csv2db
+
+%:
+	dh $@
+
+build:
+	echo $(current_dir);
+	cd $(project_path);\
+	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build;
+
+override_dh_auto_install:
+	install -D -m 0755 $(project_path)/csv2db $$(pwd)/debian/csv2db/usr/bin/csv2db
