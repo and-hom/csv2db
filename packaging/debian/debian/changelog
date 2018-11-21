@@ -1,3 +1,11 @@
+csv2db (0.0.2) bionic; urgency=medium
+
+  * #2 Configuration load error fixed
+  * #3 Table, schema and field names escaped
+  * #4 Load all rows in single transaction
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Wed, 21 Nov 2018 22:49:02 +0300
+
 csv2db (0.0.1) bionic; urgency=medium
 
   * Initial release. 
