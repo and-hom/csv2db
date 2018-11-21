@@ -22,9 +22,8 @@ type CsvToDb struct {
 	dbTool       common.DbTool
 	tableExists  bool
 	insertSchema common.InsertSchema
-	st           *sql.Stmt
-	columnNames  []string
 	tableName    common.TableName
+	inserter     common.Inserter
 }
 
 func (this *CsvToDb) Perform() error {
@@ -77,20 +76,18 @@ func (this *CsvToDb) Perform() error {
 				return err
 			}
 
-			err = this.initInsertStatement(db)
+			err = this.initializeInserter(db)
 			if err != nil {
 				return err
 			}
-			defer this.st.Close()
+			defer this.inserter.Close()
 
 			if this.Config.HasHeader {
 				continue
 			}
 		}
 
-		args := prepareInsertArguments(this.insertSchema, this.columnNames, line)
-		log.Debug(args)
-		_, err = this.st.Exec(args...)
+		err = this.inserter.Add(line...)
 		if err != nil {
 			return err
 		}
@@ -111,16 +108,9 @@ func (this *CsvToDb) makeDbTool(db *sql.DB) common.DbTool {
 	}
 }
 
-func (this *CsvToDb) initInsertStatement(db *sql.DB) error {
-	var query string
+func (this *CsvToDb) initializeInserter(db *sql.DB) error {
 	var err error
-	query, this.columnNames, err = this.dbTool.InsertQuery(this.tableName, this.insertSchema)
-	if err != nil {
-		return err
-	}
-	log.Debug("Insert query is ", query)
-
-	this.st, err = db.Prepare(query)
+	this.inserter, err = common.CreateTxInserter(db, this.dbTool, this.tableName, this.insertSchema)
 	return err
 }
 
@@ -244,22 +234,4 @@ func nColsSchema(colsCount int) common.Schema {
 		}
 	}
 	return schema
-}
-
-func prepareInsertArguments(insertSchema common.InsertSchema, columnNames []string, line []string) []interface{} {
-	result := make([]interface{}, 0, len(insertSchema.Types))
-	for _, name := range columnNames {
-		typeDef, found := insertSchema.Types[name]
-		if !found {
-			log.Fatalf("Can not find column %s in insert schema: %v", name, insertSchema)
-		}
-		valStr := line[typeDef.OrderIndex]
-		value, err := typeDef.ValMapper(valStr)
-		if err != nil {
-			log.Fatalf("Can not convert value %s at column %d to %v(nullable=%v)",
-				valStr, typeDef.OrderIndex, typeDef.GoType, typeDef.Nullable)
-		}
-		result = append(result, value)
-	}
-	return result
 }
