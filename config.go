@@ -112,18 +112,19 @@ func (this ConfigStorage) String() string {
 func LoadConfigStorage() ConfigStorage {
 	file, confPath, err := configFile(false)
 	if err != nil {
-		return ConfigStorage{}
+		log.Warn("Can not load config: ", err)
+		return ConfigStorage{Presets:make(map[string]Config)}
 	}
 	confBytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		log.Warnf("Can not load bytes from config file %s: %v", confPath, err)
-		return ConfigStorage{}
+		return ConfigStorage{Presets:make(map[string]Config)}
 	}
 	configStorage := ConfigStorage{}
 	err = yaml.Unmarshal(confBytes, &configStorage)
 	if err != nil {
 		log.Warnf("Can not parse yaml from config file %s: %v", confPath, err)
-		return ConfigStorage{}
+		return ConfigStorage{Presets:make(map[string]Config)}
 	}
 
 	if configStorage.Presets == nil {

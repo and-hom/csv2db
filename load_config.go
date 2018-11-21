@@ -43,8 +43,8 @@ func loadFromCliArgs(c *cli.Context) Config {
 }
 
 func getPreset(c *cli.Context, configStorage ConfigStorage) Config {
-	presetName := c.String(PRESET_FLAG)
-	if presetName=="" {
+	presetName := c.String(flagName(PRESET_FLAG))
+	if presetName == "" {
 		presetName = DEFAULT_PRESET
 	}
 	preset, found := configStorage.Presets[presetName]
@@ -56,7 +56,6 @@ func getPreset(c *cli.Context, configStorage ConfigStorage) Config {
 	}
 	return preset
 }
-
 
 func setPreset(c *cli.Context, configStorage ConfigStorage, preset Config) {
 	storePreset := c.String(flagName(STORE_PRESET_FLAG))
