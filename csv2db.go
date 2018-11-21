@@ -24,6 +24,7 @@ type CsvToDb struct {
 	insertSchema common.InsertSchema
 	st           *sql.Stmt
 	columnNames  []string
+	tableName    common.TableName
 }
 
 func (this *CsvToDb) Perform() error {
@@ -35,6 +36,7 @@ func (this *CsvToDb) Perform() error {
 	log.Debugf("Connected to %s %s", this.Config.DbType, this.Config.DbConnString)
 
 	this.dbTool = this.makeDbTool(db)
+	this.tableName = this.dbTool.TableName(this.Config.Schema, this.Config.Table)
 
 	csvReader, closer, err := this.createReader()
 	if err != nil {
@@ -42,7 +44,7 @@ func (this *CsvToDb) Perform() error {
 	}
 	defer closer.Close()
 
-	this.tableExists, err = this.dbTool.Exists(this.Config.Schema, this.Config.Table)
+	this.tableExists, err = this.dbTool.Exists(this.tableName)
 	if err != nil {
 		return err
 	}
@@ -112,7 +114,7 @@ func (this *CsvToDb) makeDbTool(db *sql.DB) common.DbTool {
 func (this *CsvToDb) initInsertStatement(db *sql.DB) error {
 	var query string
 	var err error
-	query, this.columnNames, err = this.dbTool.InsertQuery(this.Config.Schema, this.Config.Table, this.insertSchema)
+	query, this.columnNames, err = this.dbTool.InsertQuery(this.tableName, this.insertSchema)
 	if err != nil {
 		return err
 	}
@@ -127,7 +129,7 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 	log.Debug("CSV schema is " + common.ObjectToJson(csvSchema, false))
 
 	if this.tableExists {
-		dbTableSchema, err := this.dbTool.LoadSchema(this.Config.Schema, this.Config.Table)
+		dbTableSchema, err := this.dbTool.LoadSchema(this.tableName)
 		if err != nil {
 			return err
 		}
@@ -135,14 +137,14 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 		this.insertSchema = this.createInsertSchema(csvSchema, dbTableSchema)
 	} else {
 		if this.Config.TableMode.CreateIfMissing() || this.Config.TableMode.DropAndCreateIfExists() {
-			err := this.dbTool.CreateTable(this.Config.Schema, this.Config.Table, csvSchema)
+			err := this.dbTool.CreateTable(this.tableName, csvSchema)
 			if err != nil {
-				log.Fatalf("Can not create table %s.%s: %v", this.Config.Schema, this.Config.Table, err)
+				log.Fatalf("Can not create table %s.%s: %v", this.tableName, err)
 				return err
 			}
 		} else {
 			msg := fmt.Sprintf("Table %s.%s does not exists. Please set table mode to create or create table manually",
-				this.Config.Schema, this.Config.Table)
+				this.tableName)
 			log.Fatal(msg)
 			return errors.New(msg)
 		}
@@ -198,21 +200,22 @@ func (this *CsvToDb) parseCsvSchema(line []string) common.Schema {
 
 func (this *CsvToDb)onTableExists() error {
 	if this.Config.TableMode.DropAndCreateIfExists() {
-		err := this.dbTool.DropTable(this.Config.Schema, this.Config.Table)
+		err := this.dbTool.DropTable(this.tableName)
 		if err != nil {
-			log.Fatalf("Can not drop table %s.%s: %v", this.Config.Schema, this.Config.Table, err)
+			log.Fatalf("Can not drop table %s.%s: %v", this.tableName, err)
 			return err
 		}
+		this.tableExists = false
 	} else if this.Config.TableMode.TruncatePrevious() {
-		err := this.dbTool.TruncateTable(this.Config.Schema, this.Config.Table)
+		err := this.dbTool.TruncateTable(this.tableName)
 		if err != nil {
-			log.Fatalf("Can truncate table %s.%s: %v", this.Config.Schema, this.Config.Table, err)
+			log.Fatalf("Can truncate table %s.%s: %v", this.tableName, err)
 			return err
 		}
 	} else if this.Config.TableMode.DeletePrevious() {
-		err := this.dbTool.DeleteFromTable(this.Config.Schema, this.Config.Table)
+		err := this.dbTool.DeleteFromTable(this.tableName)
 		if err != nil {
-			log.Fatalf("Can not delete all from table %s.%s: %v", this.Config.Schema, this.Config.Table, err)
+			log.Fatalf("Can not delete all from table %s.%s: %v", this.tableName, err)
 			return err
 		}
 	}

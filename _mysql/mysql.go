@@ -27,6 +27,9 @@ func MakeDbTool(db *sql.DB) common.DbTool {
 		DbToGoTypeMapping:make(map[string]reflect.Kind),
 		GoTypeToDbMapping:make(map[reflect.Kind]string),
 		DefaultSchema:defaultSchema,
+		EscapeF:func(s string) string {
+			return "`" + s + "`"
+		},
 	}, }
 	tool.RegisterType(reflect.Int64, "bigint")
 	tool.RegisterType(reflect.Int32, "int", "mediumint")
@@ -45,13 +48,13 @@ type myDbTool struct {
 	common.CommonDbTool
 }
 
-func (this myDbTool) Exists(schema, table string) (bool, error) {
+func (this myDbTool) Exists(tableName common.TableName) (bool, error) {
 	query := `SELECT COUNT(*)
 			FROM information_schema.tables
 			WHERE table_schema = ?
 			AND table_name = ?`
 	logrus.Debug(query)
-	rows, err := this.Db.Query(query, this.NvlSchema(schema), table)
+	rows, err := this.Db.Query(query, tableName.SchemaPlain, tableName.TablePlain)
 	if err != nil {
 		return false, err
 	}
@@ -65,12 +68,12 @@ func (this myDbTool) Exists(schema, table string) (bool, error) {
 	return false, errors.New("Empty query for select exists")
 }
 
-func (this myDbTool) LoadSchema(schema, table string) (common.Schema, error) {
+func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, error) {
 	rows, err := this.Db.Query(`SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE
   					FROM INFORMATION_SCHEMA.COLUMNS
   					WHERE table_schema = ?
   					AND table_name = ?
-  					ORDER BY ORDINAL_POSITION ASC`, this.NvlSchema(schema), table)
+  					ORDER BY ORDINAL_POSITION ASC`, tableName.SchemaPlain, tableName.TablePlain)
 	if err != nil {
 		return common.Schema{}, err
 	}
@@ -102,25 +105,27 @@ func (this myDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 	return common.Schema{Types:colMap}, nil
 }
 
-func (this myDbTool) InsertQuery(schema, table string, insertSchema common.InsertSchema) (string, []string, error) {
+func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
 	if len(insertSchema.Types) == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
 	}
 	names := make([]string, 0, len(insertSchema.Types))
+	escapedNames := make([]string, 0, len(insertSchema.Types))
 	params := make([]string, 0, len(insertSchema.Types))
 	i := 1
 	for name, _ := range insertSchema.Types {
 		names = append(names, name)
+		escapedNames = append(escapedNames, this.Escape(name))
 		params = append(params, "?")
 		i += 1
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
-	sb.WriteString(this.NvlSchema(schema))
+	sb.WriteString(tableName.Schema)
 	sb.WriteString(".")
-	sb.WriteString(table)
+	sb.WriteString(tableName.Table)
 	sb.WriteString("(")
-	sb.WriteString(strings.Join(names, ","))
+	sb.WriteString(strings.Join(escapedNames, ","))
 	sb.WriteString(") VALUES (")
 	sb.WriteString(strings.Join(params, ","))
 	sb.WriteString(")")

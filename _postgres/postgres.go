@@ -18,6 +18,9 @@ func MakeDbTool(db *sql.DB) common.DbTool {
 		DbToGoTypeMapping:make(map[string]reflect.Kind),
 		GoTypeToDbMapping:make(map[reflect.Kind]string),
 		DefaultSchema:"public",
+		EscapeF:func(s string) string {
+			return "\"" + s + "\""
+		},
 	}, }
 	tool.RegisterType(reflect.Int64, "bigint", "bigserial")
 	tool.RegisterType(reflect.Int32, "integer", "serial")
@@ -36,7 +39,7 @@ type pgDbTool struct {
 	common.CommonDbTool
 }
 
-func (this pgDbTool) Exists(schema, table string) (bool, error) {
+func (this pgDbTool) Exists(tableName common.TableName) (bool, error) {
 	query := `SELECT EXISTS (
 				   SELECT 1
 				   FROM   pg_catalog.pg_class c
@@ -46,7 +49,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 				   AND    c.relkind = 'r'
 				)`
 	logrus.Debug(query)
-	rows, err := this.Db.Query(query, this.NvlSchema(schema), table)
+	rows, err := this.Db.Query(query, tableName.SchemaPlain, tableName.TablePlain)
 	if err != nil {
 		return false, err
 	}
@@ -60,7 +63,7 @@ func (this pgDbTool) Exists(schema, table string) (bool, error) {
 	return false, errors.New("Empty query for select exists")
 }
 
-func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
+func (this pgDbTool) LoadSchema(tableName common.TableName) (common.Schema, error) {
 	rows, err := this.Db.Query(`SELECT
 					    f.attname AS name,
 					    not f.attnotnull AS nullable,
@@ -76,7 +79,8 @@ func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 					WHERE c.relkind = 'r'::char
 					    AND n.nspname = $1
 					    AND c.relname = $2
-					    AND f.attnum > 0 ORDER BY f.attnum ASC`, this.NvlSchema(schema), table)
+					    AND f.attnum > 0 ORDER BY f.attnum ASC`,
+		tableName.SchemaPlain, tableName.TablePlain)
 	if err != nil {
 		return common.Schema{}, err
 	}
@@ -106,41 +110,27 @@ func (this pgDbTool) LoadSchema(schema, table string) (common.Schema, error) {
 	return common.Schema{Types:colMap}, nil
 }
 
-func (this pgDbTool) CreateTable(schema, table string, tabSchema common.Schema) error {
-	return this.CommonDbTool.CreateTable(this.NvlSchema(schema), table, tabSchema)
-}
-
-func (this pgDbTool) DropTable(schema, table string) error {
-	return this.CommonDbTool.DropTable(this.NvlSchema(schema), table)
-}
-
-func (this pgDbTool) TruncateTable(schema, table string) error {
-	return this.CommonDbTool.TruncateTable(this.NvlSchema(schema), table)
-}
-
-func (this pgDbTool) DeleteFromTable(schema, table string) error {
-	return this.CommonDbTool.DeleteFromTable(this.NvlSchema(schema), table)
-}
-
-func (this pgDbTool) InsertQuery(schema, table string, insertSchema common.InsertSchema) (string, []string, error) {
+func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
 	if len(insertSchema.Types) == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
 	}
 	names := make([]string, 0, len(insertSchema.Types))
+	escapedNames := make([]string, 0, len(insertSchema.Types))
 	params := make([]string, 0, len(insertSchema.Types))
 	i := 1
 	for name, _ := range insertSchema.Types {
 		names = append(names, name)
+		escapedNames = append(escapedNames, this.Escape(name))
 		params = append(params, fmt.Sprintf("$%d", i))
 		i += 1
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
-	sb.WriteString(this.NvlSchema(schema))
+	sb.WriteString(tableName.Schema)
 	sb.WriteString(".")
-	sb.WriteString(table)
+	sb.WriteString(tableName.Table)
 	sb.WriteString("(")
-	sb.WriteString(strings.Join(names, ","))
+	sb.WriteString(strings.Join(escapedNames, ","))
 	sb.WriteString(") VALUES (")
 	sb.WriteString(strings.Join(params, ","))
 	sb.WriteString(")")

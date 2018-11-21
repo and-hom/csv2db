@@ -10,20 +10,33 @@ import (
 )
 
 type DbTool interface {
-	Exists(schema, table string) (bool, error)
-	LoadSchema(schema, table string) (Schema, error)
-	CreateTable(schema, table string, tabSchema Schema) error
-	DeleteFromTable(schema, table string) error
-	TruncateTable(schema, table string) error
-	DropTable(schema, table string) error
-	InsertQuery(schema, table string, tabSchema InsertSchema) (string, []string, error)
+	TableName(schema, table string) TableName
+
+	Exists(tableName TableName) (bool, error)
+	LoadSchema(tableName TableName) (Schema, error)
+	CreateTable(tableName TableName, tabSchema Schema) error
+	DeleteFromTable(tableName TableName) error
+	TruncateTable(tableName TableName) error
+	DropTable(tableName TableName) error
+	InsertQuery(tableName TableName, tabSchema InsertSchema) (string, []string, error)
 }
 
 type CommonDbTool struct {
 	Db                *sql.DB
 	DbToGoTypeMapping map[string]reflect.Kind
 	GoTypeToDbMapping map[reflect.Kind]string
-	DefaultSchema string
+	DefaultSchema     string
+	EscapeF           func(string) string
+}
+
+func (this CommonDbTool) TableName(schema, table string) TableName {
+	schemaNotEmpty := this.NvlSchema(schema)
+	return TableName{
+		Table:this.Escape(table),
+		Schema:this.Escape(schemaNotEmpty),
+		TablePlain:table,
+		SchemaPlain:schemaNotEmpty,
+	}
 }
 
 func (this CommonDbTool) RegisterType(goType reflect.Kind, dbPrimaryType string, dbTypes ...string) {
@@ -34,14 +47,14 @@ func (this CommonDbTool) RegisterType(goType reflect.Kind, dbPrimaryType string,
 	this.GoTypeToDbMapping[goType] = dbPrimaryType
 }
 
-func (this CommonDbTool) CreateTable(schema, table string, tabSchema Schema) error {
+func (this CommonDbTool) CreateTable(tableName TableName, tabSchema Schema) error {
 	if len(tabSchema.Types) == 0 {
 		return errors.New("Can not create table without any column")
 	}
 	sb := bytes.NewBufferString("CREATE TABLE ")
-	sb.WriteString(this.NvlSchema(schema))
+	sb.WriteString(tableName.Schema)
 	sb.WriteString(".")
-	sb.WriteString(table)
+	sb.WriteString(tableName.Table)
 	sb.WriteString("(")
 
 	first := true
@@ -55,7 +68,7 @@ func (this CommonDbTool) CreateTable(schema, table string, tabSchema Schema) err
 		if !registered {
 			return fmt.Errorf("No registered SQL type for go type %v", colDef.GoType)
 		}
-		sb.WriteString(name)
+		sb.WriteString(this.Escape(name))
 		sb.WriteString(" ")
 		sb.WriteString(sqlType)
 		if !colDef.Nullable {
@@ -70,18 +83,18 @@ func (this CommonDbTool) CreateTable(schema, table string, tabSchema Schema) err
 	return err
 }
 
-func (this CommonDbTool) DropTable(schema, table string) error {
-	_, err := this.Db.Exec(fmt.Sprintf("DROP TABLE %s.%s", this.NvlSchema(schema), table))
+func (this CommonDbTool) DropTable(tableName TableName) error {
+	_, err := this.Db.Exec(fmt.Sprintf("DROP TABLE %s.%s", tableName.Schema, tableName.Table))
 	return err
 }
 
-func (this CommonDbTool) TruncateTable(schema, table string) error {
-	_, err := this.Db.Exec(fmt.Sprintf("TRUNCATE TABLE %s.%s", this.NvlSchema(schema), table))
+func (this CommonDbTool) TruncateTable(tableName TableName) error {
+	_, err := this.Db.Exec(fmt.Sprintf("TRUNCATE TABLE %s.%s", tableName.Schema, tableName.Table))
 	return err
 }
 
-func (this CommonDbTool) DeleteFromTable(schema, table string) error {
-	_, err := this.Db.Exec(fmt.Sprintf("DELETE FROM %s.%s", this.NvlSchema(schema), table))
+func (this CommonDbTool) DeleteFromTable(tableName TableName) error {
+	_, err := this.Db.Exec(fmt.Sprintf("DELETE FROM %s.%s", tableName.Schema, tableName.Table))
 	return err
 }
 
@@ -90,4 +103,18 @@ func (this CommonDbTool) NvlSchema(schema string) string {
 		return this.DefaultSchema
 	}
 	return schema
+}
+
+func (this CommonDbTool) Escape(v string) string {
+	if this.EscapeF == nil {
+		return v
+	}
+	return this.EscapeF(v)
+}
+
+type TableName struct {
+	Table       string
+	Schema      string
+	TablePlain  string
+	SchemaPlain string
 }
