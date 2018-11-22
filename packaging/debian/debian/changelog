@@ -1,4 +1,4 @@
-csv2db (0.0.2) bionic; urgency=medium
+csv2db (0.0.14) bionic; urgency=medium
 
   * #2 Configuration load error fixed
   * #3 Table, schema and field names escaped
