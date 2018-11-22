@@ -1,3 +1,9 @@
+csv2db (0.0.15) bionic; urgency=medium
+
+  * #4 Batch insert. Use Copy for PG and multiple rows in one query for mysql.
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Thu, 22 Nov 2018 23:21:57 +0300
+
 csv2db (0.0.14) bionic; urgency=medium
 
   * #2 Configuration load error fixed
