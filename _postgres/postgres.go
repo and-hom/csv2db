@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"strings"
 	"fmt"
+	"github.com/and-hom/csv2db/common/inserter"
 )
 
 func MakeDbTool(db *sql.DB) common.DbTool {
@@ -111,17 +112,20 @@ func (this pgDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 }
 
 func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
-	if len(insertSchema.Types) == 0 {
+	return this.InsertQueryMultiple(tableName, insertSchema, 1)
+}
+
+func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, []string, error) {
+	rowParamCount := len(insertSchema.Types)
+	if rowParamCount == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
 	}
-	names := make([]string, 0, len(insertSchema.Types))
-	escapedNames := make([]string, 0, len(insertSchema.Types))
-	params := make([]string, 0, len(insertSchema.Types))
+	names := make([]string, 0, rowParamCount)
+	escapedNames := make([]string, 0, rowParamCount)
 	i := 1
 	for name, _ := range insertSchema.Types {
 		names = append(names, name)
 		escapedNames = append(escapedNames, this.Escape(name))
-		params = append(params, fmt.Sprintf("$%d", i))
 		i += 1
 	}
 
@@ -131,8 +135,23 @@ func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common
 	sb.WriteString(tableName.Table)
 	sb.WriteString("(")
 	sb.WriteString(strings.Join(escapedNames, ","))
-	sb.WriteString(") VALUES (")
-	sb.WriteString(strings.Join(params, ","))
-	sb.WriteString(")")
+	sb.WriteString(") VALUES ")
+	for i := 0; i < rows; i++ {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("(")
+		for j := 0; j < rowParamCount; j++ {
+			if j > 0 {
+				sb.WriteString(",")
+			}
+			sb.WriteString(fmt.Sprintf("$%d", i * rowParamCount + j + 1))
+		}
+		sb.WriteString(")")
+	}
 	return sb.String(), names, nil
+}
+
+func (this pgDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
+	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.Types))
 }

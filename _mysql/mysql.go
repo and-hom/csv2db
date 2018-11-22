@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"strings"
 	"log"
+	"github.com/and-hom/csv2db/common/inserter"
 )
 
 func MakeDbTool(db *sql.DB) common.DbTool {
@@ -105,7 +106,12 @@ func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	return common.Schema{Types:colMap}, nil
 }
 
+
 func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
+	return this.InsertQueryMultiple(tableName, insertSchema, 1)
+}
+
+func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, []string, error) {
 	if len(insertSchema.Types) == 0 {
 		return "", []string{}, errors.New("Can not insert 0 columns")
 	}
@@ -126,9 +132,19 @@ func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common
 	sb.WriteString(tableName.Table)
 	sb.WriteString("(")
 	sb.WriteString(strings.Join(escapedNames, ","))
-	sb.WriteString(") VALUES (")
-	sb.WriteString(strings.Join(params, ","))
-	sb.WriteString(")")
+	sb.WriteString(") VALUES ")
+	for i := 0; i < rows; i++ {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("(")
+		sb.WriteString(strings.Join(params, ","))
+		sb.WriteString(")")
+	}
 	return sb.String(), names, nil
+}
+
+func (this myDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
+	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.Types))
 }
 
