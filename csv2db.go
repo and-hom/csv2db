@@ -16,6 +16,7 @@ import (
 	"github.com/and-hom/csv2db/_postgres"
 	"github.com/and-hom/csv2db/_mysql"
 	"github.com/xo/dburl"
+	"time"
 )
 
 type CsvToDb struct {
@@ -65,6 +66,7 @@ func (this *CsvToDb) Perform() error {
 	}
 
 	first := true
+	var started time.Time
 
 	for {
 		line, err := csvReader.Read()
@@ -81,11 +83,14 @@ func (this *CsvToDb) Perform() error {
 				return err
 			}
 
-			err = this.initializeInserter(db)
+			this.inserter, err = this.dbTool.CreateInserter(this.tableName, this.insertSchema)
 			if err != nil {
 				return err
 			}
 			defer this.inserter.Close()
+
+
+			started = time.Now()
 
 			if this.Config.HasHeader {
 				continue
@@ -97,6 +102,8 @@ func (this *CsvToDb) Perform() error {
 			return err
 		}
 	}
+
+	log.Infof("Performed in %s", time.Since(started).String())
 
 	return nil
 }
@@ -111,12 +118,6 @@ func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
 		log.Fatalf("Unsupported db type %s", dbUrl.Driver)
 		return nil
 	}
-}
-
-func (this *CsvToDb) initializeInserter(db *sql.DB) error {
-	var err error
-	this.inserter, err = common.CreateTxInserter(db, this.dbTool, this.tableName, this.insertSchema)
-	return err
 }
 
 func (this *CsvToDb) initInsertSchema(line []string) error {
@@ -139,7 +140,7 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 			}
 		} else {
 			msg := fmt.Sprintf("Table %s.%s does not exists. Please set table mode to create or create table manually",
-				this.tableName)
+				this.tableName.String())
 			log.Fatal(msg)
 			return errors.New(msg)
 		}

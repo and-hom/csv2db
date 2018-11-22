@@ -11,6 +11,7 @@ import (
 
 type DbTool interface {
 	TableName(schema, table string) TableName
+	CreateInserter(tableName TableName, insertSchema InsertSchema) (Inserter, error)
 
 	Exists(tableName TableName) (bool, error)
 	LoadSchema(tableName TableName) (Schema, error)
@@ -19,6 +20,7 @@ type DbTool interface {
 	TruncateTable(tableName TableName) error
 	DropTable(tableName TableName) error
 	InsertQuery(tableName TableName, tabSchema InsertSchema) (string, []string, error)
+	InsertQueryMultiple(tableName TableName, tabSchema InsertSchema, rows int) (string, []string, error)
 }
 
 type CommonDbTool struct {
@@ -117,4 +119,8 @@ type TableName struct {
 	Schema      string
 	TablePlain  string
 	SchemaPlain string
+}
+
+func (this TableName) String() string {
+	return this.Schema + "." + this.Table
 }
