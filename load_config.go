@@ -26,8 +26,7 @@ func loadFromCliArgs(c *cli.Context) Config {
 		schemaName = tableParts[0]
 	}
 	cliConfig := Config{
-		DbType:DbType(c.String(flagName(DB_TYPE_FLAG))),
-		DbConnString:c.String(flagName(CONN_STRING_FLAG)),
+		DbUrl:c.String(flagName(DB_URL_FLAG)),
 
 		Schema:schemaName,
 		Table:tableParts[len(tableParts) - 1],

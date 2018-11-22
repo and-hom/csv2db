@@ -12,11 +12,8 @@ import (
 	"strings"
 )
 
-type DbType string
-
-const postgres DbType = "postgres"
-const mysql DbType = "mysql"
-const oracle DbType = "oracle"
+const postgres = "postgres"
+const mysql = "mysql"
 
 const MODE_CREATE = "create"
 const MODE_DELETE_ALL = "delete-all"
@@ -33,8 +30,7 @@ var modes = []string{
 }
 
 type Config struct {
-	DbType       DbType
-	DbConnString string
+	DbUrl string
 
 	Schema       string
 	Table        string

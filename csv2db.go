@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/and-hom/csv2db/_postgres"
 	"github.com/and-hom/csv2db/_mysql"
+	"github.com/xo/dburl"
 )
 
 type CsvToDb struct {
@@ -27,14 +28,18 @@ type CsvToDb struct {
 }
 
 func (this *CsvToDb) Perform() error {
-	db, err := sql.Open(string(this.Config.DbType), this.Config.DbConnString)
+	dbUrl, err := dburl.Parse(this.Config.DbUrl)
+	if err != nil {
+		log.Fatalf("Can not parse DB url: %v", err)
+	}
+	db, err := sql.Open(dbUrl.Driver, dbUrl.DSN)
 	if err != nil {
 		log.Fatalf("Can not connect to database: %v", err)
 	}
 	defer db.Close()
-	log.Debugf("Connected to %s %s", this.Config.DbType, this.Config.DbConnString)
+	log.Debugf("Connected to %s", this.Config.DbUrl)
 
-	this.dbTool = this.makeDbTool(db)
+	this.dbTool = this.makeDbTool(db, dbUrl)
 	this.tableName = this.dbTool.TableName(this.Config.Schema, this.Config.Table)
 
 	csvReader, closer, err := this.createReader()
@@ -96,14 +101,14 @@ func (this *CsvToDb) Perform() error {
 	return nil
 }
 
-func (this *CsvToDb) makeDbTool(db *sql.DB) common.DbTool {
-	switch this.Config.DbType {
+func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
+	switch dbUrl.Driver {
 	case postgres:
 		return _postgres.MakeDbTool(db)
 	case mysql:
 		return _mysql.MakeDbTool(db)
 	default:
-		log.Fatalf("Unsupported db type %s", this.Config.DbType)
+		log.Fatalf("Unsupported db type %s", dbUrl.Driver)
 		return nil
 	}
 }

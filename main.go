@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-const CONN_STRING_FLAG = "connection-string, conn"
-const DB_TYPE_FLAG = "db-type, db"
+const DB_URL_FLAG = "url"
 const TABLE_FLAG = "table, t"
 const TABLE_MODE_FLAG = "table-mode, m"
 const INPUT_FILE_FLAG = "input-file, i"
@@ -27,8 +26,10 @@ func main() {
 	app.Action = mainAction
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{Name:CONN_STRING_FLAG, Usage:"Connection string"},
-		cli.StringFlag{Name:DB_TYPE_FLAG, Usage:"Database type"},
+		cli.StringFlag{Name:DB_URL_FLAG, Usage:`Database url by https://github.com/xo/dburl project. For example:
+			mysql:		mysql://csv2db:csv2db@localhost:5432/csv2db
+			postgres:	  postgres://csv2db:csv2db@localhost:5432/csv2db
+		`},
 		cli.StringFlag{Name:TABLE_FLAG, Usage:"Table name"},
 		cli.StringFlag{Name:TABLE_MODE_FLAG, Usage:"Table mode flag. Available values are: " + strings.Join(modes, ", ")},
 		cli.StringFlag{Name:INPUT_FILE_FLAG, Usage:"Input CSV file. Use -- to read from stdin"},
