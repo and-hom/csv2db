@@ -77,13 +77,32 @@ func (this *bufferedTxInserter) flush() error {
 }
 
 func (this *bufferedTxInserter) Close() error {
+	var err error
+
+        if len(this.buffer) > 0 {
+                err = this.flush()
+        }
+        if err!=nil {
+                if this.tx != nil {
+                        this.tx.Rollback()
+                }
+                return err
+        }
+
+
 	if this.Stmt != nil {
-		defer this.Stmt.Close()
+		err = this.Stmt.Close()
 	}
-	if len(this.buffer) > 0 {
-		return this.flush()
+	if err!=nil {
+		if this.tx != nil {
+			this.tx.Rollback()
+		}
+		return err
 	}
-	return nil
+	if this.tx != nil {
+             err = this.tx.Commit()
+        }
+	return err
 }
 
 func CreateBufferedTxInserter(db *sql.DB, dbTool common.DbTool, tableName common.TableName, insertSchema common.InsertSchema, batchSize int) (common.Inserter, error) {
