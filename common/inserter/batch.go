@@ -49,7 +49,7 @@ func (this *bufferedTxInserter) prepareStmt() error {
 }
 
 func (this *bufferedTxInserter) prepareStmtForce() error {
-	logrus.Debugf("Preparing statement for %s args", len(this.buffer))
+	logrus.Debugf("Preparing statement for %d args", len(this.buffer))
 	query, _, err := this.dbTool.InsertQueryMultiple(this.tableName, this.InsertSchema, this.counter)
 	if err != nil {
 		return err
