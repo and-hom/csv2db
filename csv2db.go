@@ -36,6 +36,8 @@ func (this *CsvToDb) Perform() error {
 	if err != nil {
 		log.Fatalf("Can not parse DB url: %v", err)
 	}
+	initializeCredentialsIfMissing(dbUrl)
+
 	db, err := sql.Open(dbUrl.Driver, dbUrl.DSN)
 	if err != nil {
 		log.Fatalf("Can not connect to database: %v", err)
