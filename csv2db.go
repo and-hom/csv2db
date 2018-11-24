@@ -130,14 +130,14 @@ func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
 
 func (this *CsvToDb) initInsertSchema(line []string) error {
 	csvSchema := this.parseCsvSchema(line)
-	log.Debug("CSV schema is " + common.ObjectToJson(csvSchema, false))
+	log.Debugf("CSV schema is:\n%s\n", common.SchemaToAsciiTable(csvSchema))
 
 	if this.tableExists {
 		dbTableSchema, err := this.dbTool.LoadSchema(this.tableName)
 		if err != nil {
 			return err
 		}
-		log.Debug("DB schema is " + common.ObjectToJson(dbTableSchema, false))
+		log.Debugf("DB schema is:\n%s\n", common.SchemaToAsciiTable(dbTableSchema))
 		this.insertSchema = this.createInsertSchema(csvSchema, dbTableSchema)
 	} else {
 		if this.Config.TableMode.CreateIfMissing() || this.Config.TableMode.DropAndCreateIfExists() {
@@ -147,14 +147,14 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 				return err
 			}
 		} else {
-			msg := fmt.Sprintf("Table %s.%s does not exists. Please set table mode to create or create table manually",
+			msg := fmt.Sprintf("Table %s does not exists. Please set table mode to create or create table manually",
 				this.tableName.String())
 			log.Fatal(msg)
 			return errors.New(msg)
 		}
 		this.insertSchema = csvSchema.ToInsertSchema()
 	}
-	log.Info("Insert schema is " + common.ObjectToJson(this.insertSchema, false))
+	log.Infof("Insert schema is:\n%s\n", common.InsertSchemaToAsciiTable(this.insertSchema))
 	return nil
 }
 

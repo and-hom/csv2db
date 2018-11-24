@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"bytes"
 	"encoding/json"
+	"github.com/olekukonko/tablewriter"
 )
 
 type Schema struct {
@@ -176,5 +177,37 @@ func ObjectToJson(object interface{}, pretty bool) string {
 	if err != nil {
 		logrus.Fatalf("Can not convert config to string: %v", err)
 	}
+	return buf.String()
+}
+
+func InsertSchemaToAsciiTable(schema InsertSchema) string {
+	colDefs := make(map[string]ColDef, len(schema.Types))
+	for name, def := range schema.Types {
+		colDefs[name] = def.ColDef
+	}
+	return schemaToAsciiTable(colDefs)
+}
+
+func SchemaToAsciiTable(schema Schema) string {
+	return schemaToAsciiTable(schema.Types)
+}
+
+func schemaToAsciiTable(cols map[string]ColDef) string {
+	data := make([][]string, len(cols))
+	for name, def := range cols {
+		data[def.OrderIndex] = []string{
+			name, strconv.FormatInt(int64(def.OrderIndex), 10), def.GoType.String(), strconv.FormatBool(def.Nullable),
+		}
+	}
+
+	buf := bytes.Buffer{}
+	table := tablewriter.NewWriter(&buf)
+	table.SetHeader([]string{"Name", "Order index", "Go type", "Nullable"})
+	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetCenterSeparator("|")
+	table.AppendBulk(data)
+	table.SetBorders(tablewriter.Border{Bottom:true, Left:true, Right:true, Top:false})
+	table.Render()
+
 	return buf.String()
 }
