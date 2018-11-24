@@ -17,7 +17,10 @@ import (
 	"github.com/and-hom/csv2db/_mysql"
 	"github.com/xo/dburl"
 	"time"
+	"github.com/machinebox/progress"
 )
+
+const MIN_SIZE_BYTES_TO_SHOW_PROGRESS = 100
 
 type CsvToDb struct {
 	Config       Config
@@ -43,7 +46,7 @@ func (this *CsvToDb) Perform() error {
 	this.dbTool = this.makeDbTool(db, dbUrl)
 	this.tableName = this.dbTool.TableName(this.Config.Schema, this.Config.Table)
 
-	csvReader, closer, err := this.createReader()
+	csvReader, closer, size, progressFunc, err := this.createReader()
 	if err != nil {
 		return err
 	}
@@ -63,6 +66,11 @@ func (this *CsvToDb) Perform() error {
 
 	if !this.Config.HasHeader && !this.tableExists {
 		log.Warn("Can not detect column names - using col1...colN column names. Use CSV header with flag %s or create table in the database", HEADER_FLAG)
+	}
+
+	progressBar := InitProgressBar(progressFunc, size)
+	if size > MIN_SIZE_BYTES_TO_SHOW_PROGRESS {
+		progressBar.Start()
 	}
 
 	first := true
@@ -89,7 +97,6 @@ func (this *CsvToDb) Perform() error {
 			}
 			defer this.inserter.Close()
 
-
 			started = time.Now()
 
 			if this.Config.HasHeader {
@@ -103,6 +110,7 @@ func (this *CsvToDb) Perform() error {
 		}
 	}
 
+	progressBar.Stop()
 	log.Infof("Performed in %s", time.Since(started).String())
 
 	return nil
@@ -157,16 +165,23 @@ func (this *CsvToDb) createInsertSchema(csvSchema, dbTableSchema common.Schema) 
 		return common.CreateCsvToDbSchemaByIdx(csvSchema, dbTableSchema)
 	}
 }
-func (this *CsvToDb) createReader() (*csv.Reader, io.Closer, error) {
+func (this *CsvToDb) createReader() (*csv.Reader, io.Closer, int64, func() int64, error) {
 	var reader *os.File
 	var err error
+	size := int64(0)
 	if this.Config.FileName == "--" {
 		reader = os.Stdin
 	} else {
 		reader, err = os.Open(this.Config.FileName)
 		if err != nil {
 			log.Fatalf("Can not open CSV file %s: %v", this.Config.FileName, err)
-			return nil, nil, err
+			return nil, nil, 0, return0, err
+		}
+		info, err := reader.Stat()
+		if err != nil {
+			log.Warnf("Can not get file stat %s: %v", this.Config.FileName, err)
+		} else {
+			size = info.Size()
 		}
 	}
 
@@ -177,13 +192,18 @@ func (this *CsvToDb) createReader() (*csv.Reader, io.Closer, error) {
 		encodedReader, err = charset.NewReader(reader, this.Config.Encoding)
 		if err != nil {
 			log.Fatalf("Can not decode file dfrom charset %s: %v", this.Config.Encoding, err)
-			return nil, nil, err
+			return nil, nil, 0, return0, err
 		}
 	}
-	fileReader := bufio.NewReader(encodedReader)
+	progressReader := progress.NewReader(encodedReader)
+	fileReader := bufio.NewReader(progressReader)
 	csvReader := csv.NewReader(fileReader)
 	csvReader.Comma = ([]rune(this.Config.Delimiter))[0]
-	return csvReader, reader, nil
+	return csvReader, reader, size, progressReader.N, nil
+}
+
+func return0() int64 {
+	return int64(0)
 }
 
 func (this *CsvToDb) parseCsvSchema(line []string) common.Schema {
