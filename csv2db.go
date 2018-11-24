@@ -154,7 +154,7 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 		}
 		this.insertSchema = csvSchema.ToInsertSchema()
 	}
-	log.Debug("Insert schema is " + common.ObjectToJson(this.insertSchema, false))
+	log.Info("Insert schema is " + common.ObjectToJson(this.insertSchema, false))
 	return nil
 }
 
