@@ -32,3 +32,15 @@ go build
     --input-file sample/big-sample.csv --has-header --table-mode create
 
 ```
+
+## Authorization
+### By url
+Use url with login and password like this: mysql://csv2db:csv2db@localhost/csv2db
+
+### By environment variables
+Set environment variables ``DB_USERNAME`` and ``DB_PASSWORD``. If db url does not
+have username, username from environment will be used. If db url does not contain
+password, password from environment will be used.
+
+### By command line prompt
+If **csv2db** can not define password previous ways, it will ask for them.

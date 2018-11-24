@@ -14,6 +14,7 @@ import (
 
 var AUTH AuthProvider = Auth{Providers:[]AuthProvider{
 	UrlContainsAuthInfo{},
+	GetFromEnvironment{},
 	AskForMissing{},
 }}
 
@@ -72,6 +73,35 @@ func (this AskForMissing) InitializeUserInfo(dbUrl *dburl.URL) bool {
 	}
 	dbUrl.User = url.UserPassword(userName, password)
 	return true
+}
+
+type GetFromEnvironment struct {
+}
+
+func (this GetFromEnvironment) InitializeUserInfo(dbUrl *dburl.URL) bool {
+	userName := dbUrl.User.Username()
+	if userName == "" {
+		userName = os.Getenv("DB_USERNAME")
+
+	}
+
+	password, passwordSet := dbUrl.User.Password()
+	if !passwordSet {
+		password = os.Getenv("DB_PASSWORD")
+
+		if password != "" {
+			passwordSet = true
+		}
+	}
+
+	if passwordSet {
+
+		dbUrl.User = url.UserPassword(userName, password)
+	} else {
+		dbUrl.User = url.User(userName)
+	}
+
+	return userName != "" && password != ""
 }
 
 type Auth struct {
