@@ -22,6 +22,12 @@ func main() {
 	}
 	cols := int(_cols)
 
+	_fieldWidth, err := strconv.ParseInt(os.Args[4], 10, 64)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	fieldWidth := int(_fieldWidth)
+
 	file, err := os.Create(os.Args[1])
 	if err != nil {
 		logrus.Fatal(err)
@@ -38,7 +44,7 @@ func main() {
 
 	for i := 0; i < rows; i++ {
 		for j := 0; j < cols; j++ {
-			row[j] = RandStringBytesRmndr(64)
+			row[j] = RandStringBytesRmndr(fieldWidth)
 		}
 		w.Write(row)
 	}
