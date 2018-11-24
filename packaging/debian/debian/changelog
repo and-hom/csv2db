@@ -1,3 +1,9 @@
+csv2db (0.0.18) bionic; urgency=medium
+
+  * #1 Get username and password not only from url, but also from system environment variables from environment or command line prompt
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Sat, 24 Nov 2018 17:46:21 +0300
+
 csv2db (0.0.17) bionic; urgency=medium
 
   * #6 Progress bar
