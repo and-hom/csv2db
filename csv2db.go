@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"encoding/csv"
 	"database/sql"
-	_ "github.com/lib/pq"
 	log "github.com/Sirupsen/logrus"
 	"github.com/and-hom/csv2db/common"
 	"io"
@@ -18,6 +17,7 @@ import (
 	"github.com/xo/dburl"
 	"time"
 	"github.com/machinebox/progress"
+	"github.com/and-hom/csv2db/_oracle"
 )
 
 const MIN_SIZE_BYTES_TO_SHOW_PROGRESS = 100
@@ -124,6 +124,8 @@ func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
 		return _postgres.MakeDbTool(db)
 	case mysql:
 		return _mysql.MakeDbTool(db)
+	case oracle:
+		return _oracle.MakeDbTool(db)
 	default:
 		log.Fatalf("Unsupported db type %s", dbUrl.Driver)
 		return nil

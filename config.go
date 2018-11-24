@@ -14,6 +14,7 @@ import (
 
 const postgres = "postgres"
 const mysql = "mysql"
+const oracle = "oracle"
 
 const MODE_CREATE = "create"
 const MODE_DELETE_ALL = "delete-all"

@@ -6,6 +6,7 @@ See more details in command help ``csv2db -h``
 
 * postgres
 * mysql
+* oracle
 
 ## Installation
 

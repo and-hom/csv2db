@@ -35,6 +35,7 @@ func main() {
 		cli.StringFlag{Name:DB_URL_FLAG, Usage:`Database url by https://github.com/xo/dburl project. For example:
 			mysql:		mysql://csv2db:csv2db@localhost:5432/csv2db
 			postgres:	  postgres://csv2db:csv2db@localhost:5432/csv2db
+			oracle:		 oracle://user:pass@somehost.com/oracledb
 		`},
 		cli.StringFlag{Name:TABLE_FLAG, Usage:"Table name"},
 		cli.StringFlag{Name:TABLE_MODE_FLAG, Usage:"Table mode flag. Available values are: " + strings.Join(modes, ", ")},
