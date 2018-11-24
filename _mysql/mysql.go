@@ -145,6 +145,11 @@ func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 }
 
 func (this myDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.Types))
+	columnsCount := len(insertSchema.Types)
+	maxRecordsPerBatch := 1
+	if columnsCount>0 {
+		maxRecordsPerBatch = 1000 / columnsCount
+	}
+	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, maxRecordsPerBatch)
 }
 
