@@ -26,10 +26,5 @@ func CreateCopyInserter(db *sql.DB, dbTool common.DbTool, tableName common.Table
 		return nil, err
 	}
 
-	return &inserter.TxInserter{
-		BasicInserter:inserter.BasicInserter{
-			Stmt:stmt,
-			ColumnNames:columnNames,
-			InsertSchema:insertSchema,
-		}, Tx:tx}, nil
+	return inserter.InitTxInserter(stmt, columnNames, insertSchema, tx)
 }

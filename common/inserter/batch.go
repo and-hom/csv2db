@@ -7,7 +7,9 @@ import (
 )
 
 type bufferedTxInserter struct {
-	BasicInserter
+	stmt             *sql.Stmt
+	columnNames      []string
+	insertSchema     common.InsertSchema
 	tx               *sql.Tx
 	dbTool           common.DbTool
 	tableName        common.TableName
@@ -19,7 +21,7 @@ type bufferedTxInserter struct {
 }
 
 func (this *bufferedTxInserter) Add(args ...string) error {
-	objArgs := common.PrepareInsertArguments(this.InsertSchema, this.ColumnNames, args)
+	objArgs := common.PrepareInsertArguments(this.insertSchema, this.columnNames, args)
 	this.buffer = append(this.buffer, objArgs...)
 	this.counter += 1
 	if this.counter > this.batchSize {
@@ -37,10 +39,10 @@ func (this *bufferedTxInserter) initTx() error {
 }
 
 func (this *bufferedTxInserter) prepareStmt() error {
-	if this.Stmt == nil {
+	if this.stmt == nil {
 		return this.prepareStmtForce()
 	} else if (this.counter != this.prevStmtRowCount) {
-		if err := this.Stmt.Close(); err != nil {
+		if err := this.stmt.Close(); err != nil {
 			return err
 		}
 		return this.prepareStmtForce()
@@ -50,12 +52,12 @@ func (this *bufferedTxInserter) prepareStmt() error {
 
 func (this *bufferedTxInserter) prepareStmtForce() error {
 	logrus.Debugf("Preparing statement for %d args", len(this.buffer))
-	query, _, err := this.dbTool.InsertQueryMultiple(this.tableName, this.InsertSchema, this.counter)
+	query, _, err := this.dbTool.InsertQueryMultiple(this.tableName, this.insertSchema, this.counter)
 	if err != nil {
 		return err
 	}
 
-	if this.Stmt, err = this.tx.Prepare(query); err != nil {
+	if this.stmt, err = this.tx.Prepare(query); err != nil {
 		return err
 	}
 	this.prevStmtRowCount = this.counter
@@ -70,7 +72,7 @@ func (this *bufferedTxInserter) flush() error {
 		return err
 	}
 
-	_, err := this.Stmt.Exec(this.buffer...)
+	_, err := this.stmt.Exec(this.buffer...)
 	this.counter = 0
 	this.buffer = this.buffer[:0]
 	return err
@@ -79,30 +81,33 @@ func (this *bufferedTxInserter) flush() error {
 func (this *bufferedTxInserter) Close() error {
 	var err error
 
-        if len(this.buffer) > 0 {
-                err = this.flush()
-        }
-        if err!=nil {
-                if this.tx != nil {
-                        this.tx.Rollback()
-                }
-                return err
-        }
-
-
-	if this.Stmt != nil {
-		err = this.Stmt.Close()
+	if len(this.buffer) > 0 {
+		if err = this.flush(); err != nil {
+			return this.closeTx(err)
+		}
 	}
-	if err!=nil {
+
+	if this.stmt != nil {
+		if err = this.stmt.Close(); err != nil {
+			return this.closeTx(err)
+		}
+	}
+
+	if this.tx != nil {
+		return this.tx.Commit()
+	}
+
+	return nil
+}
+
+func (this *bufferedTxInserter) closeTx(err error) error {
+	if err != nil {
 		if this.tx != nil {
 			this.tx.Rollback()
 		}
 		return err
 	}
-	if this.tx != nil {
-             err = this.tx.Commit()
-        }
-	return err
+	return nil
 }
 
 func CreateBufferedTxInserter(db *sql.DB, dbTool common.DbTool, tableName common.TableName, insertSchema common.InsertSchema, batchSize int) (common.Inserter, error) {
@@ -111,7 +116,8 @@ func CreateBufferedTxInserter(db *sql.DB, dbTool common.DbTool, tableName common
 		return nil, err
 	}
 	return &bufferedTxInserter{
-		BasicInserter:BasicInserter{ColumnNames:columnNames, InsertSchema:insertSchema},
+		columnNames:columnNames,
+		insertSchema:insertSchema,
 		db:db,
 		dbTool:dbTool,
 		tableName:tableName,

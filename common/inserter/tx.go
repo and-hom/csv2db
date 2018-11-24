@@ -29,6 +29,14 @@ func CreateTxInserter(db *sql.DB, dbTool common.DbTool, tableName common.TableNa
 	}, nil
 }
 
+func InitTxInserter(stmt *sql.Stmt, columnNames []string, insertSchema common.InsertSchema, tx *sql.Tx) (common.Inserter, error) {
+	if basic, err := InitBasicInserter(stmt, columnNames, insertSchema); err!=nil {
+		return nil, err
+	} else {
+		return TxInserter{BasicInserter:basic, Tx:tx, }, nil
+	}
+}
+
 func (this TxInserter) Close() error {
 	err := this.BasicInserter.Close()
 	if err != nil {

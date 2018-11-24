@@ -7,36 +7,47 @@ import (
 )
 
 type BasicInserter struct {
-	Stmt         *sql.Stmt
-	ColumnNames  []string
-	InsertSchema common.InsertSchema
+	stmt         *sql.Stmt
+	columnNames  []string
+	insertSchema common.InsertSchema
 }
 
 func (this BasicInserter) Add(args ...string) error {
-	objArgs := common.PrepareInsertArguments(this.InsertSchema, this.ColumnNames, args)
-	_, err := this.Stmt.Exec(objArgs...)
+	objArgs := common.PrepareInsertArguments(this.insertSchema, this.columnNames, args)
+	_, err := this.stmt.Exec(objArgs...)
 	return err
 }
 
 func (this BasicInserter) Close() error {
-	return this.Stmt.Close()
+	return this.stmt.Close()
 }
 
-func CreateBasicInserter(db common.CanPrepareStatement, dbTool common.DbTool, tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	query, ColumnNames, err := dbTool.InsertQuery(tableName, insertSchema)
+func InitBasicInserter(stmt *sql.Stmt, columnNames []string, insertSchema common.InsertSchema) (BasicInserter, error) {
+	return BasicInserter{
+		stmt:stmt,
+		columnNames:columnNames,
+		insertSchema:insertSchema,
+	}, nil
+}
+
+func CreateBasicInserter(db common.CanPrepareStatement,
+			dbTool common.DbTool,
+			tableName common.TableName,
+			insertSchema common.InsertSchema) (common.Inserter, error) {
+	query, columnNames, err := dbTool.InsertQuery(tableName, insertSchema)
 	if err != nil {
 		return nil, err
 	}
 	logrus.Debug("Insert query is ", query)
 
-	Stmt, err := db.Prepare(query)
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicInserter{
-		Stmt:Stmt,
-		ColumnNames:ColumnNames,
-		InsertSchema:insertSchema,
+		stmt:stmt,
+		columnNames:columnNames,
+		insertSchema:insertSchema,
 	}, nil
 }
