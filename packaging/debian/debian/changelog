@@ -1,3 +1,10 @@
+csv2db (0.0.17) bionic; urgency=medium
+
+  * #6 Progress bar
+  * Log level customized
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Sat, 24 Nov 2018 16:29:41 +0300
+
 csv2db (0.0.16) bionic; urgency=medium
 
   * Transaction commit fix for mysql
