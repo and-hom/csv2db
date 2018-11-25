@@ -13,11 +13,10 @@ import (
 	"fmt"
 	"golang.org/x/net/html/charset"
 	"github.com/pkg/errors"
-	"github.com/and-hom/csv2db/_postgres"
-	"github.com/and-hom/csv2db/_mysql"
 	"github.com/xo/dburl"
 	"time"
 	"github.com/machinebox/progress"
+	"plugin"
 )
 
 const MIN_SIZE_BYTES_TO_SHOW_PROGRESS = 100
@@ -38,14 +37,16 @@ func (this *CsvToDb) Perform() error {
 	}
 	initializeCredentialsIfMissing(dbUrl)
 
-	db, err := sql.Open(dbUrl.Driver, dbUrl.DSN)
+	var db *sql.DB
+	this.dbTool, db, err = this.connect(dbUrl)
 	if err != nil {
-		log.Fatalf("Can not connect to database: %v", err)
+		if db != nil {
+			defer db.Close()
+		}
+		log.Fatal("Can not connect: ", err)
+		return err
 	}
 	defer db.Close()
-	log.Debugf("Connected to %s", this.Config.DbUrl)
-
-	this.dbTool = this.makeDbTool(db, dbUrl)
 	this.tableName = this.dbTool.TableName(this.Config.Schema, this.Config.Table)
 
 	csvReader, closer, size, progressFunc, err := this.createReader()
@@ -118,16 +119,24 @@ func (this *CsvToDb) Perform() error {
 	return nil
 }
 
-func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
-	switch dbUrl.Driver {
-	case postgres:
-		return _postgres.MakeDbTool(db)
-	case mysql:
-		return _mysql.MakeDbTool(db)
-	default:
-		log.Fatalf("Unsupported db type %s", dbUrl.Driver)
-		return nil
+func (this *CsvToDb) connect(dbUrl *dburl.URL) (common.DbTool, *sql.DB, error) {
+	modName := "/usr/lib/csv2db-" + dbUrl.Driver + ".so"
+	p, err := plugin.Open(modName)
+	if err != nil {
+		log.Fatalf("Can not load module %s: %v", modName, err)
+		return nil, nil, err
 	}
+	f, err := p.Lookup("MakeDbTool")
+	if err != nil {
+		log.Fatal("Can not lookup function MakeDbTool ", err)
+		return nil, nil, err
+	}
+	mkDbToolD, ok := f.(func(dbUrl *dburl.URL) (common.DbTool, *sql.DB, error))
+	if !ok {
+		log.Fatalf("%v is not a func() common.DbTool")
+		return nil, nil, err
+	}
+	return mkDbToolD(dbUrl)
 }
 
 func (this *CsvToDb) initInsertSchema(line []string) error {

@@ -1,4 +1,4 @@
-package _postgres
+package main
 
 import (
 	"github.com/and-hom/csv2db/common"

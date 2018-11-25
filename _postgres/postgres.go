@@ -1,4 +1,4 @@
-package _postgres
+package main
 
 import (
 	"database/sql"
@@ -11,9 +11,16 @@ import (
 	"strings"
 	"fmt"
 	"github.com/and-hom/csv2db/common/inserter"
+	"github.com/xo/dburl"
 )
 
-func MakeDbTool(db *sql.DB) common.DbTool {
+func MakeDbTool(dbUrl *dburl.URL) (common.DbTool, *sql.DB, error) {
+	db, err := sql.Open(dbUrl.Driver, dbUrl.DSN)
+	if err != nil {
+		logrus.Fatalf("Can not connect to database: %v", err)
+		return nil, nil, err
+	}
+
 	tool := pgDbTool{common.CommonDbTool{
 		Db:db,
 		DbToGoTypeMapping:make(map[string]reflect.Kind),
@@ -33,7 +40,7 @@ func MakeDbTool(db *sql.DB) common.DbTool {
 		"date", "time", "timestamp",
 		"date with time zone", "time with time zone", "timestamp with time zone", )
 
-	return tool
+	return tool, db, nil
 }
 
 type pgDbTool struct {

@@ -1,4 +1,4 @@
-package _mysql
+package main
 
 import (
 	"database/sql"
@@ -11,17 +11,26 @@ import (
 	"strings"
 	"log"
 	"github.com/and-hom/csv2db/common/inserter"
+	"github.com/xo/dburl"
 )
 
-func MakeDbTool(db *sql.DB) common.DbTool {
+func MakeDbTool(dbUrl *dburl.URL) (common.DbTool, *sql.DB, error) {
+	db, err := sql.Open(dbUrl.Driver, dbUrl.DSN)
+	if err != nil {
+		log.Fatalf("Can not connect to database: %v", err)
+		return nil, nil, err
+	}
+
 	rows, err := db.Query("SELECT DATABASE()")
 	if err != nil || !rows.Next() {
 		log.Fatalf("Can not determine current schema: %v", err)
+		return nil, nil, err
 	}
 	defaultSchema := ""
 	err = rows.Scan(&defaultSchema)
 	if err != nil {
 		log.Fatalf("Can not determine current schema: %v", err)
+		return nil, nil, err
 	}
 	tool := myDbTool{common.CommonDbTool{
 		Db:db,
@@ -42,7 +51,7 @@ func MakeDbTool(db *sql.DB) common.DbTool {
 
 	tool.RegisterType(reflect.String, "text", "varchar", "char", "json", "enum", "date", "time", "timestamp", )
 
-	return tool
+	return tool, db, nil
 }
 
 type myDbTool struct {
@@ -106,7 +115,6 @@ func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	return common.Schema{Types:colMap}, nil
 }
 
-
 func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
 	return this.InsertQueryMultiple(tableName, insertSchema, 1)
 }
@@ -147,7 +155,7 @@ func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 func (this myDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
 	columnsCount := len(insertSchema.Types)
 	maxRecordsPerBatch := 1
-	if columnsCount>0 {
+	if columnsCount > 0 {
 		maxRecordsPerBatch = 1000 / columnsCount
 	}
 	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, maxRecordsPerBatch)

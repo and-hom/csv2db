@@ -10,7 +10,12 @@ project_path := obj-x86_64-linux-gnu/src/github.com/and-hom/csv2db
 build:
 	echo $(current_dir);
 	cd $(project_path);\
+	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build -buildmode=plugin -o csv2db-mysql.so github.com/and-hom/csv2db/_mysql;\
+	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build -buildmode=plugin -o csv2db-postgres.so github.com/and-hom/csv2db/_postgres;\
 	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build;
 
 override_dh_auto_install:
+	install -d $$(pwd)/debian/csv2db/usr/lib/
+
 	install -D -m 0755 $(project_path)/csv2db $$(pwd)/debian/csv2db/usr/bin/csv2db
+	install -D -m 0644 $(project_path)/*.so $$(pwd)/debian/csv2db/usr/lib/
