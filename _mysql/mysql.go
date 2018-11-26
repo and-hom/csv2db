@@ -146,6 +146,10 @@ func (this myDbTool) CreateInserter(tableName common.TableName, insertSchema com
 	if columnsCount > 0 {
 		maxRecordsPerBatch = 1000 / columnsCount
 	}
-	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, maxRecordsPerBatch)
+	ins, err := inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, maxRecordsPerBatch)
+	if err != nil {
+		return nil, err
+	}
+	return inserter.Background(&ins), nil
 }
 

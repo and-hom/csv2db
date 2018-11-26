@@ -149,5 +149,9 @@ func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 }
 
 func (this pgDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.OrderedDbColumns))
+	ins,err := inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.OrderedDbColumns))
+	if err!=nil {
+		return nil, err
+	}
+	return inserter.Background(&ins), nil
 }
