@@ -18,6 +18,8 @@ const STORE_PRESET_FLAG = "store-preset, s"
 const PRESET_FLAG = "preset, p"
 const LOG_LEVEL_FLAG = "log-level, l"
 
+var version string = "development"
+
 func main() {
 	log.SetLevel(log.DebugLevel)
 
@@ -25,6 +27,7 @@ func main() {
 	app.Name = "csv2db"
 	app.Usage = "Import your CSV to database as a table"
 	app.Action = mainAction
+	app.Version = version
 
 	logLevels := make([]string, len(log.AllLevels))
 	for i, ll := range log.AllLevels {

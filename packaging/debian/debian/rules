@@ -3,6 +3,7 @@
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(abspath $(mkfile_path)/../../)
 project_path := obj-x86_64-linux-gnu/src/github.com/and-hom/csv2db
+DEB_VERSION = $(shell dpkg-parsechangelog --show-field Version)
 
 %:
 	dh $@
@@ -10,7 +11,7 @@ project_path := obj-x86_64-linux-gnu/src/github.com/and-hom/csv2db
 build:
 	echo $(current_dir);
 	cd $(project_path);\
-	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build;
+	GOPATH="$(current_dir)/obj-x86_64-linux-gnu" go build -ldflags "-X main.version=$(DEB_VERSION)";
 
 override_dh_auto_install:
 	install -D -m 0755 $(project_path)/csv2db $$(pwd)/debian/csv2db/usr/bin/csv2db
