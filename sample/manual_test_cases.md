@@ -1,11 +1,19 @@
 ## No table, no header
 
+```
+export DB=postgres
+```
+or
+```
+export DB=mysql
+```
+
 ### Shold fail
 ```
 DROP TABLE IF EXISTS "no_header"
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --input-file sample/no-header.csv
 ```
 
@@ -14,11 +22,11 @@ DROP TABLE IF EXISTS "no_header"
 DROP TABLE IF EXISTS "no_header"
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode create --input-file sample/no-header.csv
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  col1 | col2 | col3 |    col4    | col0
 ------+------+------+------------+------
  2    | qqq  | {}   | 2017-01-01 | 1
@@ -34,7 +42,7 @@ csv2db-test=# select * from no_header;
 DROP TABLE IF EXISTS "no_header"
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --input-file sample/header.csv --has-header
 ```
 
@@ -43,11 +51,11 @@ DROP TABLE IF EXISTS "no_header"
 DROP TABLE IF EXISTS "no_header"
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode create --input-file sample/header.csv --has-header
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  d  |     e      | a | b |  c
 ----+------------+---+---+-----
  {} | 2017-01-01 | 1 | 2 | qqq
@@ -69,7 +77,7 @@ CREATE TABLE public.no_header
 )
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode as-is --input-file sample/no-header.csv
 ```
 
@@ -85,11 +93,11 @@ CREATE TABLE public.no_header
 )
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode as-is --input-file sample/no-header.csv
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  a | b |  c  | d  |     e
 ---+---+-----+----+------------
  1 | 2 | qqq | {} | 2017-01-01
@@ -109,8 +117,8 @@ CREATE TABLE public.no_header
 )
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
-    --table no_header --table-mode drop-anc-create --input-file sample/no-header.csv
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
+    --table no_header --table-mode drop-and-create --input-file sample/no-header.csv
 ```
 ```
  col0 | col1 | col2 | col3 |    col4
@@ -134,11 +142,11 @@ CREATE TABLE public.no_header
 ```
 Run twice or more. Repeat the same with ``--table-mode delete-all``
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode truncate --input-file sample/no-header.csv
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  a | b |  c  | d  |     e
 ---+---+-----+----+------------
  1 | 2 | qqq | {} | 2017-01-01
@@ -160,11 +168,11 @@ CREATE TABLE public.no_header
 ```
 Run twice or more. Repeat the same with ``--table-mode delete-all``
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode truncate --input-file sample/no-header.csv
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  a | b |  c  | d  |     e      | f
 ---+---+-----+----+------------+---
  1 | 2 | qqq | {} | 2017-01-01 |
@@ -184,11 +192,11 @@ CREATE TABLE public.no_header
 ```
 Run twice or more. Repeat the same with ``--table-mode delete-all``
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode truncate --input-file sample/no-header.csv
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  a | b |  c  | d
 ---+---+-----+----
  1 | 2 | qqq | {}
@@ -207,11 +215,11 @@ CREATE TABLE public.no_header
 )
 ```
 ```
-./csv2db --db postgres --conn 'postgres://csv2db:csv2db@localhost:5432/csv2db-test?sslmode=require' \
+./csv2db --url "$DB://csv2db:csv2db@localhost/csv2db" \
     --table no_header --table-mode truncate --input-file sample/header-short.csv --has-header
 ```
 ```
-csv2db-test=# select * from no_header;
+csv2db=# select * from no_header;
  a | b |  c  | d
 ---+---+-----+----
  1 |   | qqq | {}

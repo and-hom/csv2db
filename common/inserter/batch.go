@@ -8,7 +8,6 @@ import (
 
 type bufferedTxInserter struct {
 	stmt             *sql.Stmt
-	columnNames      []string
 	insertSchema     common.InsertSchema
 	tx               *sql.Tx
 	dbTool           common.DbTool
@@ -21,7 +20,7 @@ type bufferedTxInserter struct {
 }
 
 func (this *bufferedTxInserter) Add(args ...string) error {
-	objArgs := common.PrepareInsertArguments(this.insertSchema, this.columnNames, args)
+	objArgs := common.PrepareInsertArguments(this.insertSchema, args)
 	this.buffer = append(this.buffer, objArgs...)
 	this.counter += 1
 	if this.counter > this.batchSize {
@@ -52,10 +51,11 @@ func (this *bufferedTxInserter) prepareStmt() error {
 
 func (this *bufferedTxInserter) prepareStmtForce() error {
 	logrus.Debugf("Preparing statement for %d args", len(this.buffer))
-	query, _, err := this.dbTool.InsertQueryMultiple(this.tableName, this.insertSchema, this.counter)
+	query, err := this.dbTool.InsertQueryMultiple(this.tableName, this.insertSchema, this.counter)
 	if err != nil {
 		return err
 	}
+	logrus.Debug("Insert query is: ", query)
 
 	if this.stmt, err = this.tx.Prepare(query); err != nil {
 		return err
@@ -111,12 +111,7 @@ func (this *bufferedTxInserter) closeTx(err error) error {
 }
 
 func CreateBufferedTxInserter(db *sql.DB, dbTool common.DbTool, tableName common.TableName, insertSchema common.InsertSchema, batchSize int) (common.Inserter, error) {
-	_, columnNames, err := dbTool.InsertQuery(tableName, insertSchema)
-	if err != nil {
-		return nil, err
-	}
 	return &bufferedTxInserter{
-		columnNames:columnNames,
 		insertSchema:insertSchema,
 		db:db,
 		dbTool:dbTool,

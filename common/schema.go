@@ -20,25 +20,16 @@ type ColDef struct {
 }
 
 func (this Schema) ToInsertSchema() InsertSchema {
-	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
-
+	insertSchema := NewInsertSchema()
 	for name, colDef := range this.Types {
-		valMapper := createValMapper(colDef.GoType)
-		if colDef.Nullable {
-			valMapper = NullableMapper{Source:valMapper}.Apply
-		}
-
-		insertSchema.Types[name] = InsertColDef{
-			ValMapper:valMapper,
-			ColDef:colDef,
-		}
+		insertSchema.Add(name, colDef)
 	}
 	return insertSchema
 }
 
 /// Take type and nullable from DB cchema
 func CreateCsvToDbSchemaByName(csvSchema, dbSchema Schema) InsertSchema {
-	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
+	insertSchema := NewInsertSchema()
 	for name, csvDef := range csvSchema.Types {
 		dbDef, found := dbSchema.Types[name]
 		if !found {
@@ -46,23 +37,17 @@ func CreateCsvToDbSchemaByName(csvSchema, dbSchema Schema) InsertSchema {
 			continue
 		}
 
-		valMapper := createValMapper(dbDef.GoType)
-		if dbDef.Nullable {
-			valMapper = NullableMapper{Source:valMapper}.Apply
-		}
-		insertSchema.Types[name] = InsertColDef{
-			ValMapper:valMapper,
-			ColDef:ColDef{
-				GoType: dbDef.GoType,
-				Nullable:dbDef.Nullable,
-				OrderIndex:csvDef.OrderIndex,
-			},
-		}
+		insertSchema.Add(name, ColDef{
+			GoType: dbDef.GoType,
+			Nullable:dbDef.Nullable,
+			OrderIndex:csvDef.OrderIndex,
+		})
 	}
 	return insertSchema
 }
+
 func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
-	insertSchema := InsertSchema{Types:make(map[string]InsertColDef)}
+	insertSchema := NewInsertSchema()
 	for _, csvDef := range csvSchema.Types {
 		name, dbDef, found := getByIdx(dbSchema, csvDef.OrderIndex)
 		if !found {
@@ -74,14 +59,11 @@ func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
 		if dbDef.Nullable {
 			valMapper = NullableMapper{Source:valMapper}.Apply
 		}
-		insertSchema.Types[name] = InsertColDef{
-			ValMapper:valMapper,
-			ColDef:ColDef{
-				GoType: dbDef.GoType,
-				Nullable:dbDef.Nullable,
-				OrderIndex:csvDef.OrderIndex,
-			},
-		}
+		insertSchema.Add(name, ColDef{
+			GoType: dbDef.GoType,
+			Nullable:dbDef.Nullable,
+			OrderIndex:csvDef.OrderIndex,
+		})
 	}
 	return insertSchema
 }
@@ -95,8 +77,39 @@ func getByIdx(schema Schema, index int) (string, ColDef, bool) {
 	return "", ColDef{}, false
 }
 
+func NewInsertSchema() InsertSchema {
+	return InsertSchema{types:make(map[string]InsertColDef), OrderedDbColumns:make([]string, 0)}
+}
+
 type InsertSchema struct {
-	Types map[string]InsertColDef
+	types            map[string]InsertColDef
+	OrderedDbColumns []string
+}
+
+func (this *InsertSchema) Get(name string) (InsertColDef, bool) {
+	typeDef, ok := this.types[name]
+	return typeDef, ok
+}
+
+func (this *InsertSchema) Len() int {
+	return len(this.OrderedDbColumns)
+}
+
+func (this *InsertSchema) ForEach(func()) interface{} {
+	return len(this.OrderedDbColumns)
+}
+
+func (this *InsertSchema) Add(name string, colDef ColDef) {
+	valMapper := createValMapper(colDef.GoType)
+	if colDef.Nullable {
+		valMapper = NullableMapper{Source:valMapper}.Apply
+	}
+
+	this.types[name] = InsertColDef{
+		ValMapper:valMapper,
+		ColDef:colDef,
+	}
+	this.OrderedDbColumns = append(this.OrderedDbColumns, name)
 }
 
 type InsertColDef struct {
@@ -181,8 +194,8 @@ func ObjectToJson(object interface{}, pretty bool) string {
 }
 
 func InsertSchemaToAsciiTable(schema InsertSchema) string {
-	colDefs := make(map[string]ColDef, len(schema.Types))
-	for name, def := range schema.Types {
+	colDefs := make(map[string]ColDef, len(schema.types))
+	for name, def := range schema.types {
 		colDefs[name] = def.ColDef
 	}
 	return schemaToAsciiTable(colDefs)

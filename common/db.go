@@ -19,8 +19,8 @@ type DbTool interface {
 	DeleteFromTable(tableName TableName) error
 	TruncateTable(tableName TableName) error
 	DropTable(tableName TableName) error
-	InsertQuery(tableName TableName, tabSchema InsertSchema) (string, []string, error)
-	InsertQueryMultiple(tableName TableName, tabSchema InsertSchema, rows int) (string, []string, error)
+	InsertQuery(tableName TableName, tabSchema InsertSchema) (string, error)
+	InsertQueryMultiple(tableName TableName, tabSchema InsertSchema, rows int) (string, error)
 }
 
 type CommonDbTool struct {

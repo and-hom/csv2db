@@ -11,10 +11,10 @@ type Inserter interface {
 	Add(...string) error
 }
 
-func PrepareInsertArguments(insertSchema InsertSchema, columnNames []string, line []string) []interface{} {
-	result := make([]interface{}, 0, len(insertSchema.Types))
-	for _, name := range columnNames {
-		typeDef, found := insertSchema.Types[name]
+func PrepareInsertArguments(insertSchema InsertSchema, line []string) []interface{} {
+	result := make([]interface{}, 0, insertSchema.Len())
+	for _, name := range insertSchema.OrderedDbColumns {
+		typeDef, found := insertSchema.Get(name)
 		if !found {
 			log.Fatalf("Can not find column %s in insert schema: %v", name, insertSchema)
 		}

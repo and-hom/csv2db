@@ -106,24 +106,20 @@ func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	return common.Schema{Types:colMap}, nil
 }
 
-
-func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
+func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, error) {
 	return this.InsertQueryMultiple(tableName, insertSchema, 1)
 }
 
-func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, []string, error) {
-	if len(insertSchema.Types) == 0 {
-		return "", []string{}, errors.New("Can not insert 0 columns")
+func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, error) {
+	if len(insertSchema.OrderedDbColumns) == 0 {
+		return "", errors.New("Can not insert 0 columns")
 	}
-	names := make([]string, 0, len(insertSchema.Types))
-	escapedNames := make([]string, 0, len(insertSchema.Types))
-	params := make([]string, 0, len(insertSchema.Types))
-	i := 1
-	for name, _ := range insertSchema.Types {
-		names = append(names, name)
-		escapedNames = append(escapedNames, this.Escape(name))
-		params = append(params, "?")
-		i += 1
+
+	escapedNames := make([]string, len(insertSchema.OrderedDbColumns))
+	params := make([]string, len(insertSchema.OrderedDbColumns))
+	for i, name := range insertSchema.OrderedDbColumns {
+		escapedNames[i] = this.Escape(name)
+		params[i] = "?"
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
@@ -141,13 +137,13 @@ func (this myDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 		sb.WriteString(strings.Join(params, ","))
 		sb.WriteString(")")
 	}
-	return sb.String(), names, nil
+	return sb.String(), nil
 }
 
 func (this myDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	columnsCount := len(insertSchema.Types)
+	columnsCount := len(insertSchema.OrderedDbColumns)
 	maxRecordsPerBatch := 1
-	if columnsCount>0 {
+	if columnsCount > 0 {
 		maxRecordsPerBatch = 1000 / columnsCount
 	}
 	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, maxRecordsPerBatch)

@@ -111,22 +111,18 @@ func (this pgDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	return common.Schema{Types:colMap}, nil
 }
 
-func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, []string, error) {
+func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, error) {
 	return this.InsertQueryMultiple(tableName, insertSchema, 1)
 }
 
-func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, []string, error) {
-	rowParamCount := len(insertSchema.Types)
+func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchema common.InsertSchema, rows int) (string, error) {
+	rowParamCount := len(insertSchema.OrderedDbColumns)
 	if rowParamCount == 0 {
-		return "", []string{}, errors.New("Can not insert 0 columns")
+		return "", errors.New("Can not insert 0 columns")
 	}
-	names := make([]string, 0, rowParamCount)
-	escapedNames := make([]string, 0, rowParamCount)
-	i := 1
-	for name, _ := range insertSchema.Types {
-		names = append(names, name)
-		escapedNames = append(escapedNames, this.Escape(name))
-		i += 1
+	escapedNames := make([]string, rowParamCount)
+	for i,name := range insertSchema.OrderedDbColumns {
+		escapedNames[i] = this.Escape(name)
 	}
 
 	sb := bytes.NewBufferString("INSERT INTO ")
@@ -149,9 +145,9 @@ func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 		}
 		sb.WriteString(")")
 	}
-	return sb.String(), names, nil
+	return sb.String(), nil
 }
 
 func (this pgDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.Types))
+	return inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.OrderedDbColumns))
 }
