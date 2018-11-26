@@ -1,3 +1,10 @@
+csv2db (0.0.19) bionic; urgency=medium
+
+  * #12 Column order for mysql fixed
+  * Program version compiled into binary (--verion flag works)
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Mon, 26 Nov 2018 21:33:50 +0300
+
 csv2db (0.0.18) bionic; urgency=medium
 
   * #1 Get username and password not only from url, but also from system environment variables from environment or command line prompt
