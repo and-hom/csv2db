@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const QUEUE_SIZE = 512
+const QUEUE_SIZE = 4096
 
 func Background(inserter *common.Inserter) common.Inserter {
 	backgroundInserter := backgroundInserter{
@@ -25,16 +25,11 @@ type backgroundInserter struct {
 
 func (this *backgroundInserter) insertLoop() {
 	this.wg.Add(1)
-	i:=1
 	for {
 		args, ok := <-this.dataChan
 		if !ok {
 			break
 		}
-		if i%100 == 0 {
-			logrus.Debug(len(this.dataChan))
-		}
-		i+=1
 		err := (*this.inserter).Add(args...)
 		if err != nil {
 			this.wg.Done()
