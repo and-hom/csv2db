@@ -108,6 +108,7 @@ func (this *CsvToDb) Perform() error {
 
 		err = this.inserter.Add(line...)
 		if err != nil {
+			log.Errorf("Can not insert: %v", err)
 			return err
 		}
 	}
