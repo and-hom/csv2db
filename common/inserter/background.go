@@ -13,6 +13,7 @@ func Background(inserter *common.Inserter) common.Inserter {
 		inserter:inserter,
 		dataChan:make(chan []string, QUEUE_SIZE),
 	}
+	backgroundInserter.wg.Add(1)
 	go backgroundInserter.insertLoop()
 	return &backgroundInserter
 }
@@ -24,7 +25,7 @@ type backgroundInserter struct {
 }
 
 func (this *backgroundInserter) insertLoop() {
-	this.wg.Add(1)
+	defer this.wg.Done()
 	for {
 		args, ok := <-this.dataChan
 		if !ok {
@@ -32,18 +33,14 @@ func (this *backgroundInserter) insertLoop() {
 		}
 		err := (*this.inserter).Add(args...)
 		if err != nil {
-			this.wg.Done()
 			logrus.Fatal("Can not insert: ", err)
 			return
 		}
 	}
 	err := (*this.inserter).Close()
 	if err != nil {
-		this.wg.Done()
 		logrus.Fatal("Can not close inserter: ", err)
 		return
-	} else {
-		this.wg.Done()
 	}
 }
 
