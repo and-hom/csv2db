@@ -1,3 +1,9 @@
+csv2db (0.0.20) bionic; urgency=medium
+
+  * #13 Insert in background from channel
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Mon, 26 Nov 2018 22:18:46 +0300
+
 csv2db (0.0.19) bionic; urgency=medium
 
   * #12 Column order for mysql fixed
