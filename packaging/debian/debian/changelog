@@ -1,3 +1,9 @@
+csv2db (0.0.22) bionic; urgency=medium
+
+  * #14 Column order for new table fixed
+
+ -- Andrey Khomyakov <and.hom@gmail.com>  Tue, 27 Nov 2018 21:27:31 +0300
+
 csv2db (0.0.21) bionic; urgency=medium
 
   * #13 Concurrency fix for background insert
