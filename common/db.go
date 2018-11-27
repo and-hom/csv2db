@@ -50,7 +50,7 @@ func (this CommonDbTool) RegisterType(goType reflect.Kind, dbPrimaryType string,
 }
 
 func (this CommonDbTool) CreateTable(tableName TableName, tabSchema Schema) error {
-	if len(tabSchema.Types) == 0 {
+	if tabSchema.Len() == 0 {
 		return errors.New("Can not create table without any column")
 	}
 	sb := bytes.NewBufferString("CREATE TABLE ")
@@ -60,7 +60,12 @@ func (this CommonDbTool) CreateTable(tableName TableName, tabSchema Schema) erro
 	sb.WriteString("(")
 
 	first := true
-	for name, colDef := range tabSchema.Types {
+	for _, name := range tabSchema.OrderedDbColumns {
+		colDef, found := tabSchema.Get(name)
+		if !found {
+			logrus.Fatalf("Can not found column %s in mapping: %v", name, tabSchema.ToJson())
+			continue
+		}
 		if first {
 			first = false
 		} else {

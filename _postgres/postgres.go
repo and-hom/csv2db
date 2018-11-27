@@ -87,12 +87,13 @@ func (this pgDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	}
 	defer rows.Close()
 
-	colMap := make(map[string]common.ColDef)
+	schema := common.NewSchema()
 	i := 0
 	for rows.Next() {
 		colName := ""
 		dataType := ""
 		colDef := common.ColDef{OrderIndex:i}
+		typeOk := false
 		i += 1
 
 		err := rows.Scan(&colName, &colDef.Nullable, &dataType)
@@ -100,15 +101,14 @@ func (this pgDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 			return common.Schema{}, err
 		}
 
-		var typeOk = false
 		colDef.GoType, typeOk = this.DbToGoTypeMapping[dataType]
 		if !typeOk {
 			logrus.Warnf("Can not detect go type for column type %s - skip column", dataType)
 			continue
 		}
-		colMap[colName] = colDef
+		schema.Add(colName, colDef)
 	}
-	return common.Schema{Types:colMap}, nil
+	return schema, nil
 }
 
 func (this pgDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, error) {
@@ -121,7 +121,7 @@ func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 		return "", errors.New("Can not insert 0 columns")
 	}
 	escapedNames := make([]string, rowParamCount)
-	for i,name := range insertSchema.OrderedDbColumns {
+	for i, name := range insertSchema.OrderedDbColumns {
 		escapedNames[i] = this.Escape(name)
 	}
 
@@ -149,8 +149,8 @@ func (this pgDbTool) InsertQueryMultiple(tableName common.TableName, insertSchem
 }
 
 func (this pgDbTool) CreateInserter(tableName common.TableName, insertSchema common.InsertSchema) (common.Inserter, error) {
-	ins,err := inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.OrderedDbColumns))
-	if err!=nil {
+	ins, err := inserter.CreateBufferedTxInserter(this.Db, this, tableName, insertSchema, 1000 / len(insertSchema.OrderedDbColumns))
+	if err != nil {
 		return nil, err
 	}
 	return inserter.Background(&ins), nil

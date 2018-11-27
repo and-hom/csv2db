@@ -7,11 +7,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/olekukonko/tablewriter"
+	"fmt"
 )
-
-type Schema struct {
-	Types map[string]ColDef
-}
 
 type ColDef struct {
 	GoType     reflect.Kind
@@ -19,19 +16,58 @@ type ColDef struct {
 	OrderIndex int
 }
 
-func (this Schema) ToInsertSchema() InsertSchema {
+func NewSchema() Schema {
+	return Schema{types:make(map[string]ColDef), OrderedDbColumns:make([]string, 0)}
+}
+
+type Schema struct {
+	types            map[string]ColDef
+	OrderedDbColumns []string
+}
+
+func (this *Schema) Add(name string, colDef ColDef) {
+	this.types[name] = colDef
+	this.OrderedDbColumns = append(this.OrderedDbColumns, name)
+}
+
+func (this *Schema) Get(name string) (ColDef, bool) {
+	typeDef, ok := this.types[name]
+	return typeDef, ok
+}
+
+func (this *Schema)GetByIdx(index int) (string, ColDef, bool) {
+	if index >= len(this.OrderedDbColumns) {
+		return "", ColDef{}, false
+	}
+	name := this.OrderedDbColumns[index]
+	return name, this.types[name], true
+}
+
+func (this *Schema) Len() int {
+	return len(this.OrderedDbColumns)
+}
+
+func (this *Schema) ToInsertSchema() InsertSchema {
 	insertSchema := NewInsertSchema()
-	for name, colDef := range this.Types {
-		insertSchema.Add(name, colDef)
+	for _, name := range this.OrderedDbColumns {
+		insertSchema.Add(name, this.types[name])
 	}
 	return insertSchema
+}
+
+func (this *Schema) ToJson() string {
+	return ObjectToJson(this, true)
+}
+
+func (this *Schema)ToAsciiTable() string {
+	return schemaToAsciiTable(this.types)
 }
 
 /// Take type and nullable from DB cchema
 func CreateCsvToDbSchemaByName(csvSchema, dbSchema Schema) InsertSchema {
 	insertSchema := NewInsertSchema()
-	for name, csvDef := range csvSchema.Types {
-		dbDef, found := dbSchema.Types[name]
+	for name, csvDef := range csvSchema.types {
+		dbDef, found := dbSchema.types[name]
 		if !found {
 			logrus.Warnf("Can not find DB defenition for CSV column %s - use not null string type", name)
 			continue
@@ -48,8 +84,8 @@ func CreateCsvToDbSchemaByName(csvSchema, dbSchema Schema) InsertSchema {
 
 func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
 	insertSchema := NewInsertSchema()
-	for _, csvDef := range csvSchema.Types {
-		name, dbDef, found := getByIdx(dbSchema, csvDef.OrderIndex)
+	for _, csvDef := range csvSchema.types {
+		name, dbDef, found := dbSchema.GetByIdx(csvDef.OrderIndex)
 		if !found {
 			logrus.Warnf("Can not find DB defenition for CSV column #%d - use not null string type", csvDef.OrderIndex)
 			continue
@@ -68,116 +104,8 @@ func CreateCsvToDbSchemaByIdx(csvSchema, dbSchema Schema) InsertSchema {
 	return insertSchema
 }
 
-func getByIdx(schema Schema, index int) (string, ColDef, bool) {
-	for name, colDef := range schema.Types {
-		if colDef.OrderIndex == index {
-			return name, colDef, true
-		}
-	}
-	return "", ColDef{}, false
-}
-
 func NewInsertSchema() InsertSchema {
 	return InsertSchema{types:make(map[string]InsertColDef), OrderedDbColumns:make([]string, 0)}
-}
-
-type InsertSchema struct {
-	types            map[string]InsertColDef
-	OrderedDbColumns []string
-}
-
-func (this *InsertSchema) Get(name string) (InsertColDef, bool) {
-	typeDef, ok := this.types[name]
-	return typeDef, ok
-}
-
-func (this *InsertSchema) Len() int {
-	return len(this.OrderedDbColumns)
-}
-
-func (this *InsertSchema) ForEach(func()) interface{} {
-	return len(this.OrderedDbColumns)
-}
-
-func (this *InsertSchema) Add(name string, colDef ColDef) {
-	valMapper := createValMapper(colDef.GoType)
-	if colDef.Nullable {
-		valMapper = NullableMapper{Source:valMapper}.Apply
-	}
-
-	this.types[name] = InsertColDef{
-		ValMapper:valMapper,
-		ColDef:colDef,
-	}
-	this.OrderedDbColumns = append(this.OrderedDbColumns, name)
-}
-
-type InsertColDef struct {
-	ColDef
-	ValMapper ValMapper `json:"-"`
-}
-
-func createValMapper(goType reflect.Kind) ValMapper {
-	switch goType {
-	case reflect.Int64:
-		return Int64ValMapper
-	case reflect.Int32:
-		return Int32ValMapper
-	case reflect.Int8:
-		return Int8ValMapper
-	case reflect.Float64:
-		return Float64ValMapper
-	case reflect.Float32:
-		return Float32ValMapper
-	case reflect.String:
-		return StringValMapper
-	case reflect.Bool:
-		return BoolValMapper
-	default:
-		logrus.Fatalf("Unsupported go type %v - can not create value mapper", goType)
-		return nil
-	}
-}
-
-type ValMapper func(val string) (interface{}, error)
-
-type NullableMapper struct {
-	Source ValMapper
-}
-
-func (this NullableMapper) Apply(val string) (interface{}, error) {
-	if val == "" {
-		return nil, nil
-	}
-	return this.Source(val)
-}
-
-func StringValMapper(val string) (interface{}, error) {
-	return val, nil
-}
-
-func Int64ValMapper(val string) (interface{}, error) {
-	return strconv.ParseInt(val, 10, 64)
-}
-
-func Int32ValMapper(val string) (interface{}, error) {
-	return strconv.ParseInt(val, 10, 32)
-}
-
-func Int8ValMapper(val string) (interface{}, error) {
-	return strconv.ParseInt(val, 10, 8)
-}
-
-func Float64ValMapper(val string) (interface{}, error) {
-	return strconv.ParseFloat(val, 64)
-}
-
-func Float32ValMapper(val string) (interface{}, error) {
-	return strconv.ParseFloat(val, 32)
-}
-
-func BoolValMapper(val string) (interface{}, error) {
-	return strconv.ParseBool(val)
 }
 
 func ObjectToJson(object interface{}, pretty bool) string {
@@ -191,18 +119,6 @@ func ObjectToJson(object interface{}, pretty bool) string {
 		logrus.Fatalf("Can not convert config to string: %v", err)
 	}
 	return buf.String()
-}
-
-func InsertSchemaToAsciiTable(schema InsertSchema) string {
-	colDefs := make(map[string]ColDef, len(schema.types))
-	for name, def := range schema.types {
-		colDefs[name] = def.ColDef
-	}
-	return schemaToAsciiTable(colDefs)
-}
-
-func SchemaToAsciiTable(schema Schema) string {
-	return schemaToAsciiTable(schema.Types)
 }
 
 func schemaToAsciiTable(cols map[string]ColDef) string {
@@ -223,4 +139,31 @@ func schemaToAsciiTable(cols map[string]ColDef) string {
 	table.Render()
 
 	return buf.String()
+}
+
+func ParseSchema(header []string) Schema {
+	schema := Schema{types:make(map[string]ColDef), OrderedDbColumns:make([]string, len(header))}
+	for i, name := range header {
+		schema.types[name] = ColDef{
+			GoType:reflect.String,
+			Nullable:false,
+			OrderIndex:i,
+		}
+		schema.OrderedDbColumns[i] = name
+	}
+	return schema
+}
+
+func NColsSchema(colsCount int) Schema {
+	schema := Schema{types:make(map[string]ColDef), OrderedDbColumns:make([]string, colsCount)}
+	for i := 0; i < colsCount; i++ {
+		name := fmt.Sprintf("col%d", i)
+		schema.types[name] = ColDef{
+			GoType:reflect.String,
+			Nullable:false,
+			OrderIndex:i,
+		}
+		schema.OrderedDbColumns[i] = name
+	}
+	return schema
 }

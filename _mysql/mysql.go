@@ -80,13 +80,14 @@ func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 	}
 	defer rows.Close()
 
-	colMap := make(map[string]common.ColDef)
+	schema := common.NewSchema()
 	i := 0
 	for rows.Next() {
 		colName := ""
 		dataType := ""
 		nullableStr := ""
 		colDef := common.ColDef{OrderIndex:i}
+		typeOk := false
 		i += 1
 
 		err := rows.Scan(&colName, &nullableStr, &dataType)
@@ -95,15 +96,14 @@ func (this myDbTool) LoadSchema(tableName common.TableName) (common.Schema, erro
 		}
 		colDef.Nullable = nullableStr == "YES"
 
-		var typeOk = false
 		colDef.GoType, typeOk = this.DbToGoTypeMapping[dataType]
 		if !typeOk {
 			logrus.Warnf("Can not detect go type for column type %s - skip column", dataType)
 			continue
 		}
-		colMap[colName] = colDef
+		schema.Add(colName, colDef)
 	}
-	return common.Schema{Types:colMap}, nil
+	return schema, nil
 }
 
 func (this myDbTool) InsertQuery(tableName common.TableName, insertSchema common.InsertSchema) (string, error) {

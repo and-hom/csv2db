@@ -9,7 +9,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/and-hom/csv2db/common"
 	"io"
-	"reflect"
 	"fmt"
 	"golang.org/x/net/html/charset"
 	"github.com/pkg/errors"
@@ -133,14 +132,14 @@ func (this *CsvToDb) makeDbTool(db *sql.DB, dbUrl *dburl.URL) common.DbTool {
 
 func (this *CsvToDb) initInsertSchema(line []string) error {
 	csvSchema := this.parseCsvSchema(line)
-	log.Debugf("CSV schema is:\n%s\n", common.SchemaToAsciiTable(csvSchema))
+	log.Debugf("CSV schema is:\n%s\n", csvSchema.ToAsciiTable())
 
 	if this.tableExists {
 		dbTableSchema, err := this.dbTool.LoadSchema(this.tableName)
 		if err != nil {
 			return err
 		}
-		log.Debugf("DB schema is:\n%s\n", common.SchemaToAsciiTable(dbTableSchema))
+		log.Debugf("DB schema is:\n%s\n", dbTableSchema.ToAsciiTable())
 		this.insertSchema = this.createInsertSchema(csvSchema, dbTableSchema)
 	} else {
 		if this.Config.TableMode.CreateIfMissing() || this.Config.TableMode.DropAndCreateIfExists() {
@@ -157,7 +156,7 @@ func (this *CsvToDb) initInsertSchema(line []string) error {
 		}
 		this.insertSchema = csvSchema.ToInsertSchema()
 	}
-	log.Infof("Insert schema is:\n%s\n", common.InsertSchemaToAsciiTable(this.insertSchema))
+	log.Infof("Insert schema is:\n%s\n", this.insertSchema.ToAsciiTable())
 	return nil
 }
 
@@ -211,9 +210,9 @@ func return0() int64 {
 
 func (this *CsvToDb) parseCsvSchema(line []string) common.Schema {
 	if this.Config.HasHeader {
-		return parseSchema(line)
+		return common.ParseSchema(line)
 	} else {
-		return nColsSchema(len(line))
+		return common.NColsSchema(len(line))
 	}
 }
 
@@ -239,28 +238,4 @@ func (this *CsvToDb)onTableExists() error {
 		}
 	}
 	return nil
-}
-
-func parseSchema(header []string) common.Schema {
-	schema := common.Schema{Types:make(map[string]common.ColDef)}
-	for i, col := range header {
-		schema.Types[col] = common.ColDef{
-			GoType:reflect.String,
-			Nullable:false,
-			OrderIndex:i,
-		}
-	}
-	return schema
-}
-
-func nColsSchema(colsCount int) common.Schema {
-	schema := common.Schema{Types:make(map[string]common.ColDef)}
-	for i := 0; i < colsCount; i++ {
-		schema.Types[fmt.Sprintf("col%d", i)] = common.ColDef{
-			GoType:reflect.String,
-			Nullable:false,
-			OrderIndex:i,
-		}
-	}
-	return schema
 }
