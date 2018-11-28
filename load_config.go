@@ -14,7 +14,6 @@ func LoadConfig(c *cli.Context) Config {
 	loadedConfig.FillMissingFromPreset(preset)
 
 	setPreset(c, configStorage, loadedConfig)
-	configStorage.Save()
 
 	return loadedConfig
 }
@@ -60,5 +59,6 @@ func setPreset(c *cli.Context, configStorage ConfigStorage, preset Config) {
 	storePreset := c.String(flagName(STORE_PRESET_FLAG))
 	if storePreset != "" {
 		configStorage.Presets[storePreset] = preset
+		configStorage.Save()
 	}
 }
