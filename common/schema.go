@@ -2,7 +2,7 @@ package common
 
 import (
 	"reflect"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"strconv"
 	"bytes"
 	"encoding/json"

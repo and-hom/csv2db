@@ -3,7 +3,7 @@ package common
 import (
 	"strconv"
 	"reflect"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func createValMapper(goType reflect.Kind) ValMapper {

@@ -5,7 +5,7 @@ import (
 	"github.com/and-hom/csv2db/common"
 	"errors"
 	"reflect"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"bytes"
 	"strings"

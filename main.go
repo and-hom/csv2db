@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"gopkg.in/urfave/cli.v1"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 

@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 	"bytes"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"fmt"
 	"errors"
 )

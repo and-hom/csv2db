@@ -3,7 +3,7 @@ package inserter
 import (
 	"database/sql"
 	"github.com/and-hom/csv2db/common"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type bufferedTxInserter struct {

@@ -2,7 +2,7 @@ package inserter
 
 import (
 	"github.com/and-hom/csv2db/common"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"sync"
 )
 

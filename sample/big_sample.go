@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"strconv"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"encoding/csv"
 	"fmt"
 	"math/rand"

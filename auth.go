@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"bufio"
 	"os"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"net/url"
 	"golang.org/x/crypto/ssh/terminal"
 	"syscall"

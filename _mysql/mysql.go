@@ -5,7 +5,7 @@ import (
 	"github.com/and-hom/csv2db/common"
 	"errors"
 	"reflect"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"bytes"
 	"strings"

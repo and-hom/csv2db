@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/and-hom/csv2db/common"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"os"
 	"os/user"
